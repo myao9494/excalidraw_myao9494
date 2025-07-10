@@ -18,6 +18,7 @@ import type {
 
 import initialData from "../initialData";
 import { resolvablePromise } from "../utils";
+import { useKeyboardShortcuts } from "../hooks/useKeyboardShortcuts";
 
 import "./ExampleApp.scss";
 
@@ -40,6 +41,7 @@ export default function ExampleApp({
 }: AppProps) {
   const {
     convertToExcalidrawElements,
+    viewportCoordsToSceneCoords,
   } = excalidrawLib;
   
   const appRef = useRef<any>(null);
@@ -56,6 +58,12 @@ export default function ExampleApp({
     useState<ExcalidrawImperativeAPI | null>(null);
 
   useCustom(excalidrawAPI, customArgs);
+
+  // カスタムキーボードショートカット機能を追加
+  useKeyboardShortcuts({
+    excalidrawAPI,
+    viewportCoordsToSceneCoords,
+  });
 
   useEffect(() => {
     if (!excalidrawAPI) {
