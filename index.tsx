@@ -19,7 +19,7 @@ const { Excalidraw } = window.ExcalidrawLib;
 root.render(
   <StrictMode>
     <App
-      appTitle={"Excalidraw Example"}
+      appTitle=""
       useCustom={(api: any, args?: any[]) => {}}
       excalidrawLib={window.ExcalidrawLib}
     >
