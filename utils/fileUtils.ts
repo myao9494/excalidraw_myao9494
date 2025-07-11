@@ -3,6 +3,9 @@ import type { AppState } from "@excalidraw/excalidraw/types";
 
 
 export interface ExcalidrawFileData {
+  type: string;
+  version: number;
+  source: string;
   elements: NonDeletedExcalidrawElement[];
   appState: Partial<AppState>;
   files?: any;

@@ -177,6 +177,9 @@ export default function ExampleApp({
           if (currentFilePath) {
             // ファイルパスが指定されている場合はファイルに保存
             const fileData: ExcalidrawFileData = {
+              type: "excalidraw",
+              version: 2,
+              source: "https://excalidraw.com",
               elements,
               appState: stateToSave,
               files: files || {}

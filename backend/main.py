@@ -59,6 +59,9 @@ class ExcalidrawAppState(BaseModel):
     scrollY: Optional[float] = None
 
 class ExcalidrawFileData(BaseModel):
+    type: str = "excalidraw"
+    version: int = 2
+    source: str = "https://excalidraw.com"
     elements: List[Dict[str, Any]]
     appState: Dict[str, Any]
     files: Dict[str, Any] = {}
