@@ -27,6 +27,12 @@ import {
   saveBinaryFilesToLocalStorage,
   loadBinaryFilesFromLocalStorage
 } from "../utils/localStorage";
+import { 
+  getFilePathFromUrl, 
+  loadExcalidrawFile, 
+  saveExcalidrawFile,
+  type ExcalidrawFileData
+} from "../utils/fileUtils";
 
 import "./ExampleApp.scss";
 
@@ -64,6 +70,8 @@ export default function ExampleApp({
 
   const [excalidrawAPI, setExcalidrawAPI] =
     useState<ExcalidrawImperativeAPI | null>(null);
+  
+  const [currentFilePath, setCurrentFilePath] = useState<string | null>(null);
 
   useCustom(excalidrawAPI, customArgs);
 
@@ -74,23 +82,57 @@ export default function ExampleApp({
   });
 
   useEffect(() => {
+    const filePath = getFilePathFromUrl();
+    setCurrentFilePath(filePath);
+  }, []);
+
+  useEffect(() => {
     if (!excalidrawAPI) {
       return;
     }
     
-    // ローカルストレージからデータを読み込み
-    const savedElements = loadElementsFromLocalStorage();
-    const savedAppState = loadAppStateFromLocalStorage();
-    const savedFiles = loadBinaryFilesFromLocalStorage();
+    const loadData = async () => {
+      let dataToLoad;
+      
+      if (currentFilePath) {
+        // ファイルパスが指定されている場合はファイルから読み込み
+        const fileData = await loadExcalidrawFile(currentFilePath);
+        if (fileData) {
+          dataToLoad = {
+            ...initialData,
+            elements: fileData.elements.length > 0 ? fileData.elements : convertToExcalidrawElements(initialData.elements),
+            appState: fileData.appState ? { ...initialData.appState, ...fileData.appState } : initialData.appState,
+            files: fileData.files || {},
+          };
+        } else {
+          // ファイルが存在しない場合は初期データを使用
+          dataToLoad = {
+            ...initialData,
+            elements: convertToExcalidrawElements(initialData.elements),
+            appState: initialData.appState,
+            files: {},
+          };
+        }
+      } else {
+        // ローカルストレージからデータを読み込み
+        const savedElements = loadElementsFromLocalStorage();
+        const savedAppState = loadAppStateFromLocalStorage();
+        const savedFiles = loadBinaryFilesFromLocalStorage();
+        
+        dataToLoad = {
+          ...initialData,
+          elements: savedElements.length > 0 ? savedElements : convertToExcalidrawElements(initialData.elements),
+          appState: savedAppState ? { ...initialData.appState, ...savedAppState } : initialData.appState,
+          files: savedFiles,
+        };
+      }
+      
+      //@ts-ignore
+      initialStatePromiseRef.current.promise.resolve(dataToLoad);
+    };
     
-    //@ts-ignore
-    initialStatePromiseRef.current.promise.resolve({
-      ...initialData,
-      elements: savedElements.length > 0 ? savedElements : convertToExcalidrawElements(initialData.elements),
-      appState: savedAppState ? { ...initialData.appState, ...savedAppState } : initialData.appState,
-      files: savedFiles,
-    });
-  }, [excalidrawAPI, convertToExcalidrawElements]);
+    loadData();
+  }, [excalidrawAPI, convertToExcalidrawElements, currentFilePath]);
 
   const renderExcalidraw = (children: React.ReactNode) => {
     const Excalidraw: any = Children.toArray(children).find(
@@ -115,14 +157,6 @@ export default function ExampleApp({
         ) => {
           console.info("Elements :", elements, "State : ", state, "Files:", files);
           
-          // ローカルストレージに保存
-          saveElementsToLocalStorage(elements);
-          
-          // 画像データも保存
-          if (files) {
-            saveBinaryFilesToLocalStorage(files);
-          }
-          
           // 保存したいアプリケーション状態のみを抽出
           const stateToSave = {
             viewBackgroundColor: state.viewBackgroundColor,
@@ -140,7 +174,32 @@ export default function ExampleApp({
             scrollY: state.scrollY,
           };
           
-          saveAppStateToLocalStorage(stateToSave);
+          if (currentFilePath) {
+            // ファイルパスが指定されている場合はファイルに保存
+            const fileData: ExcalidrawFileData = {
+              elements,
+              appState: stateToSave,
+              files: files || {}
+            };
+            
+            saveExcalidrawFile(currentFilePath, fileData).then(success => {
+              if (success) {
+                console.log(`File saved to: ${currentFilePath}`);
+              } else {
+                console.error(`Failed to save file: ${currentFilePath}`);
+              }
+            });
+          } else {
+            // ローカルストレージに保存
+            saveElementsToLocalStorage(elements);
+            
+            // 画像データも保存
+            if (files) {
+              saveBinaryFilesToLocalStorage(files);
+            }
+            
+            saveAppStateToLocalStorage(stateToSave);
+          }
         },
       },
     );
