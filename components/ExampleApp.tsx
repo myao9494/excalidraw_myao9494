@@ -19,6 +19,14 @@ import type {
 import initialData from "../initialData";
 import { resolvablePromise } from "../utils";
 import { useKeyboardShortcuts } from "../hooks/useKeyboardShortcuts";
+import { 
+  saveElementsToLocalStorage, 
+  loadElementsFromLocalStorage, 
+  saveAppStateToLocalStorage, 
+  loadAppStateFromLocalStorage,
+  saveBinaryFilesToLocalStorage,
+  loadBinaryFilesFromLocalStorage
+} from "../utils/localStorage";
 
 import "./ExampleApp.scss";
 
@@ -69,10 +77,18 @@ export default function ExampleApp({
     if (!excalidrawAPI) {
       return;
     }
+    
+    // ローカルストレージからデータを読み込み
+    const savedElements = loadElementsFromLocalStorage();
+    const savedAppState = loadAppStateFromLocalStorage();
+    const savedFiles = loadBinaryFilesFromLocalStorage();
+    
     //@ts-ignore
     initialStatePromiseRef.current.promise.resolve({
       ...initialData,
-      elements: convertToExcalidrawElements(initialData.elements),
+      elements: savedElements.length > 0 ? savedElements : convertToExcalidrawElements(initialData.elements),
+      appState: savedAppState ? { ...initialData.appState, ...savedAppState } : initialData.appState,
+      files: savedFiles,
     });
   }, [excalidrawAPI, convertToExcalidrawElements]);
 
@@ -95,8 +111,36 @@ export default function ExampleApp({
         onChange: (
           elements: NonDeletedExcalidrawElement[],
           state: AppState,
+          files: any,
         ) => {
-          console.info("Elements :", elements, "State : ", state);
+          console.info("Elements :", elements, "State : ", state, "Files:", files);
+          
+          // ローカルストレージに保存
+          saveElementsToLocalStorage(elements);
+          
+          // 画像データも保存
+          if (files) {
+            saveBinaryFilesToLocalStorage(files);
+          }
+          
+          // 保存したいアプリケーション状態のみを抽出
+          const stateToSave = {
+            viewBackgroundColor: state.viewBackgroundColor,
+            currentItemFontFamily: state.currentItemFontFamily,
+            currentItemFontSize: state.currentItemFontSize,
+            currentItemStrokeColor: state.currentItemStrokeColor,
+            currentItemBackgroundColor: state.currentItemBackgroundColor,
+            currentItemFillStyle: state.currentItemFillStyle,
+            currentItemStrokeWidth: state.currentItemStrokeWidth,
+            currentItemStrokeStyle: state.currentItemStrokeStyle,
+            currentItemRoughness: state.currentItemRoughness,
+            currentItemOpacity: state.currentItemOpacity,
+            zoom: state.zoom,
+            scrollX: state.scrollX,
+            scrollY: state.scrollY,
+          };
+          
+          saveAppStateToLocalStorage(stateToSave);
         },
       },
     );
