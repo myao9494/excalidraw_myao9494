@@ -18,7 +18,7 @@ export const getFilePathFromUrl = (): string | null => {
 
 const API_BASE_URL = 'http://localhost:8000';
 
-export const loadExcalidrawFile = async (filePath: string): Promise<ExcalidrawFileData | null> => {
+export const loadExcalidrawFile = async (filePath: string): Promise<{ data: ExcalidrawFileData; modified: number } | null> => {
   try {
     const response = await fetch(`${API_BASE_URL}/api/load-file?filepath=${encodeURIComponent(filePath)}`);
     
@@ -31,10 +31,30 @@ export const loadExcalidrawFile = async (filePath: string): Promise<ExcalidrawFi
       throw new Error(`HTTP error! status: ${response.status}`);
     }
     
-    const data = await response.json();
-    return data;
+    const result = await response.json();
+    return result;
   } catch (error) {
     console.error('Error loading file:', error);
+    return null;
+  }
+};
+
+export const getFileInfo = async (filePath: string): Promise<{ modified: number; exists: boolean } | null> => {
+  try {
+    const response = await fetch(`${API_BASE_URL}/api/file-info?filepath=${encodeURIComponent(filePath)}`);
+    
+    if (response.status === 404) {
+      return { modified: 0, exists: false };
+    }
+    
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+    
+    const result = await response.json();
+    return result;
+  } catch (error) {
+    console.error('Error getting file info:', error);
     return null;
   }
 };

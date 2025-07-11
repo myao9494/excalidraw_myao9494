@@ -83,11 +83,18 @@ async def load_file(filepath: str):
         if not file_path.exists():
             raise HTTPException(status_code=404, detail="File not found")
         
+        # ファイルの更新日時を取得
+        file_modified_time = file_path.stat().st_mtime
+        
         # ファイルを読み込み
         with open(file_path, 'r', encoding='utf-8') as f:
             data = json.load(f)
         
-        return data
+        # ファイルデータに更新日時を追加
+        return {
+            "data": data,
+            "modified": file_modified_time
+        }
     
     except FileNotFoundError:
         raise HTTPException(status_code=404, detail="File not found")
@@ -95,6 +102,28 @@ async def load_file(filepath: str):
         raise HTTPException(status_code=400, detail="Invalid JSON format")
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error loading file: {str(e)}")
+
+@app.get("/api/file-info")
+async def get_file_info(filepath: str):
+    try:
+        file_path = Path(filepath)
+        
+        # ファイルが存在しない場合
+        if not file_path.exists():
+            raise HTTPException(status_code=404, detail="File not found")
+        
+        # ファイルの更新日時を取得
+        file_modified_time = file_path.stat().st_mtime
+        
+        return {
+            "modified": file_modified_time,
+            "exists": True
+        }
+    
+    except FileNotFoundError:
+        raise HTTPException(status_code=404, detail="File not found")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error getting file info: {str(e)}")
 
 @app.post("/api/save-file")
 async def save_file(request: SaveFileRequest):

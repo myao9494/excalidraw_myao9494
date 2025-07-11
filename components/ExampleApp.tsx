@@ -4,6 +4,7 @@ import React, {
   useRef,
   Children,
   cloneElement,
+  useCallback,
 } from "react";
 
 import type * as TExcalidraw from "@excalidraw/excalidraw";
@@ -31,6 +32,7 @@ import {
   getFilePathFromUrl, 
   loadExcalidrawFile, 
   saveExcalidrawFile,
+  getFileInfo,
   type ExcalidrawFileData
 } from "../utils/fileUtils";
 
@@ -72,6 +74,8 @@ export default function ExampleApp({
     useState<ExcalidrawImperativeAPI | null>(null);
   
   const [currentFilePath, setCurrentFilePath] = useState<string | null>(null);
+  const [lastSavedElements, setLastSavedElements] = useState<string>('');
+  const [lastFileModified, setLastFileModified] = useState<number>(0);
 
   useCustom(excalidrawAPI, customArgs);
 
@@ -96,14 +100,20 @@ export default function ExampleApp({
       
       if (currentFilePath) {
         // ファイルパスが指定されている場合はファイルから読み込み
-        const fileData = await loadExcalidrawFile(currentFilePath);
-        if (fileData) {
+        const fileResult = await loadExcalidrawFile(currentFilePath);
+        if (fileResult) {
+          const { data: fileData, modified } = fileResult;
           dataToLoad = {
             ...initialData,
             elements: fileData.elements.length > 0 ? fileData.elements : convertToExcalidrawElements(initialData.elements),
             appState: fileData.appState ? { ...initialData.appState, ...fileData.appState } : initialData.appState,
             files: fileData.files || {},
           };
+          
+          // ファイルの更新日時を記録
+          setLastFileModified(modified);
+          // 初期読み込み時の要素を記録
+          setLastSavedElements(JSON.stringify(fileData.elements));
         } else {
           // ファイルが存在しない場合は初期データを使用
           dataToLoad = {
@@ -112,6 +122,7 @@ export default function ExampleApp({
             appState: initialData.appState,
             files: {},
           };
+          setLastSavedElements(JSON.stringify([]));
         }
       } else {
         // ローカルストレージからデータを読み込み
@@ -133,6 +144,53 @@ export default function ExampleApp({
     
     loadData();
   }, [excalidrawAPI, convertToExcalidrawElements, currentFilePath]);
+
+  // 定期的にファイルの更新日時をチェック
+  useEffect(() => {
+    if (!currentFilePath || !excalidrawAPI) {
+      return;
+    }
+
+    const checkFileUpdates = async () => {
+      try {
+        const fileInfo = await getFileInfo(currentFilePath);
+        if (fileInfo && fileInfo.exists && fileInfo.modified > lastFileModified) {
+          console.log('File was updated externally, reloading...');
+          
+          // ファイルを再読み込み
+          const fileResult = await loadExcalidrawFile(currentFilePath);
+          if (fileResult) {
+            const { data: fileData, modified } = fileResult;
+            
+            // Excalidraw APIを使用してシーンを更新
+            const newElements = fileData.elements.length > 0 ? fileData.elements : [];
+            const newAppState = fileData.appState ? { ...fileData.appState } : {};
+            const newFiles = fileData.files || {};
+            
+            excalidrawAPI.updateScene({
+              elements: newElements,
+              appState: newAppState,
+              files: newFiles,
+            });
+            
+            // 状態を更新
+            setLastFileModified(modified);
+            setLastSavedElements(JSON.stringify(fileData.elements));
+          }
+        }
+      } catch (error) {
+        console.error('Error checking file updates:', error);
+      }
+    };
+
+    // 5秒ごとにファイルの更新をチェック
+    const interval = setInterval(checkFileUpdates, 5000);
+
+    return () => {
+      clearInterval(interval);
+    };
+  }, [currentFilePath, excalidrawAPI, lastFileModified]);
+
 
   const renderExcalidraw = (children: React.ReactNode) => {
     const Excalidraw: any = Children.toArray(children).find(
@@ -175,23 +233,31 @@ export default function ExampleApp({
           };
           
           if (currentFilePath) {
-            // ファイルパスが指定されている場合はファイルに保存
-            const fileData: ExcalidrawFileData = {
-              type: "excalidraw",
-              version: 2,
-              source: "https://excalidraw.com",
-              elements,
-              appState: stateToSave,
-              files: files || {}
-            };
+            // 要素の変更を検出（JSONで比較）
+            const currentElementsString = JSON.stringify(elements);
+            const hasElementsChanged = currentElementsString !== lastSavedElements;
             
-            saveExcalidrawFile(currentFilePath, fileData).then(success => {
-              if (success) {
-                console.log(`File saved to: ${currentFilePath}`);
-              } else {
-                console.error(`Failed to save file: ${currentFilePath}`);
-              }
-            });
+            if (hasElementsChanged) {
+              // ファイルパスが指定されている場合はファイルに保存
+              const fileData: ExcalidrawFileData = {
+                type: "excalidraw",
+                version: 2,
+                source: "https://excalidraw.com",
+                elements,
+                appState: stateToSave,
+                files: files || {}
+              };
+              
+              saveExcalidrawFile(currentFilePath, fileData).then(success => {
+                if (success) {
+                  console.log(`File saved to: ${currentFilePath}`);
+                  setLastSavedElements(currentElementsString);
+                  setLastFileModified(Date.now());
+                } else {
+                  console.error(`Failed to save file: ${currentFilePath}`);
+                }
+              });
+            }
           } else {
             // ローカルストレージに保存
             saveElementsToLocalStorage(elements);
