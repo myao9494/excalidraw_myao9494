@@ -246,8 +246,8 @@ export default function ExampleApp({
     const currentSummary = {
       count: elements.length,
       ids: elements.map(el => el.id).sort().join(','),
-      // 大きな変更のみ検知（10px単位）
-      positions: elements.map(el => `${el.id}:${Math.round(el.x/10)*10},${Math.round(el.y/10)*10}`).sort().join('|')
+      // 1px単位で変更を検知
+      positions: elements.map(el => `${el.id}:${Math.round(el.x)},${Math.round(el.y)}`).sort().join('|')
     };
     
     const currentSummaryString = JSON.stringify(currentSummary);
@@ -282,15 +282,15 @@ export default function ExampleApp({
     const now = Date.now();
     lastChangeTimeRef.current = now;
 
-    // 2秒のデバウンス処理
+    // 0.5秒のデバウンス処理
     saveTimeoutRef.current = setTimeout(() => {
-      // 最後の変更から2秒経過していることを確認
-      if (now === lastChangeTimeRef.current || Date.now() - lastChangeTimeRef.current >= 1900) {
+      // 最後の変更から0.5秒経過していることを確認
+      if (now === lastChangeTimeRef.current || Date.now() - lastChangeTimeRef.current >= 400) {
         performSave(elements, appState, files);
         pendingSaveRef.current = false;
       }
       saveTimeoutRef.current = null;
-    }, 2000);
+    }, 500);
   }, [isSignificantChange]);
 
   // 実際の保存処理を実行する関数
@@ -324,7 +324,7 @@ export default function ExampleApp({
       const currentSummary = {
         count: elements.length,
         ids: elements.map(el => el.id).sort().join(','),
-        positions: elements.map(el => `${el.id}:${Math.round(el.x/10)*10},${Math.round(el.y/10)*10}`).sort().join('|')
+        positions: elements.map(el => `${el.id}:${Math.round(el.x)},${Math.round(el.y)}`).sort().join('|')
       };
       const currentSummaryString = JSON.stringify(currentSummary);
       

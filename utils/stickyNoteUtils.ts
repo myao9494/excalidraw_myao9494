@@ -97,10 +97,7 @@ export const createStickyNote = (options: StickyNoteOptions): NonDeletedExcalidr
     link,                // リンク情報
     locked: false,
     frameId: null,
-    roundness: {
-      type: 1,
-      value: 0
-    },
+    roundness: null,
     customData: null,
     index: 'a0' as any
   };
