@@ -114,6 +114,17 @@ export default function ExampleApp({
 
   useEffect(() => {
     const filePath = getFilePathFromUrl();
+    
+    // URLパラメータでファイルパスが指定されている場合の処理
+    if (filePath) {
+      // Excalidrawファイル以外の場合はfile viewerにリダイレクト
+      if (!filePath.toLowerCase().endsWith('.excalidraw')) {
+        const fileViewerUrl = `http://localhost:5001/fullpath?path=${filePath}`;
+        window.location.href = fileViewerUrl;
+        return;
+      }
+    }
+    
     setCurrentFilePath(filePath);
   }, []);
 
