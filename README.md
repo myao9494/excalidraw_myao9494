@@ -30,7 +30,15 @@
 
 - **基本付箋**: 黄色背景 (`#fef3bd`) - デフォルトの付箋
 - **リンク付箋**: 黄色背景 (`#fef3bd`) - ファイルパスやURLを埋め込み
-- **メール付箋**: 青色背景 (`#e3f2fd`) - メールファイル用（将来の拡張）
+- **メール付箋**: 青色背景 (`#e3f2fd`) - メールファイル用
+
+### ドラッグ&ドロップ機能
+
+- **ファイルドロップ**: ファイルをキャンバスにドロップして付箋作成（フルパスリンク付き）
+- **フォルダドロップ**: フォルダをドロップしてショートカット付箋を作成
+- **画像ドロップ**: 画像ファイルを直接キャンバスに配置（リサイズ対応）
+- **メールドロップ**: .emlや.msgファイル、Outlookメールのドロップに対応
+- **アップロード先**: ローカルストレージ使用時は`upload_local`ディレクトリに保存
 
 ## 技術仕様
 
@@ -48,15 +56,21 @@
 .
 ├── hooks/
 │   ├── useMousePosition.ts      # マウス位置追跡
-│   └── useKeyboardShortcuts.ts  # キーボードショートカット
+│   ├── useKeyboardShortcuts.ts  # キーボードショートカット
+│   └── useDragAndDrop.ts        # ドラッグ&ドロップ機能
 ├── utils/
 │   ├── stickyNoteUtils.ts       # 付箋作成ユーティリティ
 │   ├── localStorage.ts          # ローカルストレージ操作
-│   └── fileUtils.ts             # ファイル操作ユーティリティ
+│   ├── fileUtils.ts             # ファイル操作ユーティリティ
+│   ├── dragDropUtils.ts         # ドラッグ&ドロップユーティリティ
+│   └── emailUtils.ts            # メール処理ユーティリティ
 ├── components/
 │   └── ExampleApp.tsx           # メインアプリケーション
 ├── backend/
 │   └── main.py                  # FastAPIバックエンド
+├── test/
+│   └── test.excalidraw          # テスト用ファイル
+├── upload_local/                # ローカルストレージ用アップロード先
 ├── package.json
 ├── tsconfig.json
 └── README.md
@@ -71,6 +85,7 @@
 5. **ファイル操作**: FastAPIバックエンドを使用したローカルファイル操作
 6. **自動保存**: オブジェクト変更時の自動保存機能
 7. **バックアップ**: 自動バックアップ機能（5分間隔、最大10個保持）
+8. **ドラッグ&ドロップ**: 複数ファイル形式対応、座標変換、フルパスリンク機能
 
 ## インストール・実行方法
 
@@ -121,6 +136,11 @@ python -m http.server 8080
    - `W`: クリップボード付箋作成
    - `Cmd/Ctrl + M`: 最前面移動
    - `Cmd/Ctrl + B`: 最背面移動
+4. ドラッグ&ドロップ機能：
+   - ファイルをキャンバスにドロップして付箋作成
+   - フォルダをドロップしてショートカット作成
+   - 画像ファイルを直接配置
+   - Outlookメールのドロップにも対応
 
 ### ファイル操作機能
 
@@ -155,11 +175,35 @@ http://localhost:3001/?filepath=/path/to/your/file.excalidraw
 - **最前面移動**: 選択した要素とその関連テキストを最前面に
 - **最背面移動**: 選択した要素とその関連テキストを最背面に
 
+### ドラッグ&ドロップ機能の詳細
+
+#### 対応ファイル形式
+- **画像ファイル**: PNG, JPEG, GIF等 → 画像として直接配置（400px最大サイズでリサイズ）
+- **メールファイル**: .eml, .msg → 青色のメール付箋を作成
+- **一般ファイル**: PDF, DOC, TXT等 → 黄色の付箋を作成
+- **フォルダ**: フォルダのショートカット付箋を作成
+
+#### Outlookメール対応
+- Outlookから直接メールをドラッグ&ドロップ可能
+- 件名を自動抽出して付箋のタイトルに使用
+- メールデータを.emlファイルとして保存
+
+#### 付箋のリンク機能
+- **フルパスリンク**: 作成された付箋にはファイルの完全パスがリンクとして設定
+- **クリック動作**: 付箋をクリックするとローカルファイルシステムでファイルを開く
+- **ファイル位置**: ローカルストレージ使用時は`upload_local`ディレクトリに保存
+
+#### 座標計算
+- ドロップ位置をExcalidrawのシーン座標に正確に変換
+- ズーム倍率とスクロール位置を考慮した配置
+
 ## 注意事項
 
 - 入力フィールド（input, textarea, contenteditable）にフォーカスがある場合、キーボードショートカットは無効化されます
 - クリップボード機能は、HTTPSまたはlocalhost環境でのみ動作します
 - 座標計算はズーム倍率を考慮して行われます
+- ドラッグ&ドロップ機能はバックエンドサーバーが必要です（ファイルアップロード・保存のため）
+- 画像以外のファイルはバックエンドサーバーにアップロードされ、付箋にリンクが設定されます
 
 ## オフライン使用について
 
@@ -171,6 +215,7 @@ http://localhost:3001/?filepath=/path/to/your/file.excalidraw
 - **URLパラメータファイル読み込み不可**: バックエンドサーバーが必要
 - **自動バックアップ機能不可**: バックエンドサーバーが必要
 - **外部ファイル監視不可**: バックエンドサーバーが必要
+- **ドラッグ&ドロップ機能不可**: ファイルアップロードにバックエンドサーバーが必要
 
 ### バックアップ機能
 
@@ -197,8 +242,8 @@ http://localhost:3001/?filepath=/path/to/your/file.excalidraw
 - [ ] 付箋テンプレート機能
 
 ### Phase 3（中優先度）
-- [ ] ドラッグ&ドロップ機能の追加
-- [ ] メール付箋機能の完全実装
+- [x] ドラッグ&ドロップ機能の追加
+- [x] メール付箋機能の完全実装
 
 ### Phase 4（中優先度）
 - [ ] パフォーマンス最適化
@@ -226,17 +271,47 @@ useKeyboardShortcuts({
 });
 ```
 
+#### useDragAndDrop
+ドラッグ&ドロップ機能を提供するフック
+
+```typescript
+const dragDropHandlers = useDragAndDrop({
+  excalidrawAPI,
+  currentFilePath,
+  containerRef
+});
+```
+
 ### 付箋作成ユーティリティ
 
 ```typescript
 // 基本付箋
-const elements = createDefaultStickyNote(x, y);
+const elements = createStickyNoteElements(x, y, text);
 
-// リンク付箋
-const elements = createLinkStickyNote(x, y, text, link);
+// フルパス付きリンク付箋
+const elements = createStickyNoteElementsWithFullPath(x, y, text, fullPath);
 
 // メール付箋
 const elements = createEmailStickyNote(x, y, subject);
+
+// フルパス付きメール付箋
+const elements = createEmailStickyNoteWithFullPath(x, y, subject, fullPath);
+```
+
+### ドラッグ&ドロップユーティリティ
+
+```typescript
+// 座標変換
+const coordinates = convertToSceneCoordinates(clientX, clientY, containerRect, appState);
+
+// ファイル種別判定
+const fileType = getFileType(file); // 'image' | 'email' | 'general'
+
+// 画像要素作成
+const imageElement = createImageElement(x, y, width, height, fileId);
+
+// WebURL変換
+const webURL = convertToWebURL(filePath);
 ```
 
 ### ファイル操作ユーティリティ

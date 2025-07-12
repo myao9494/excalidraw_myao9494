@@ -1,5 +1,7 @@
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, UploadFile, File, Form
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
 from pydantic import BaseModel
 from pathlib import Path
 import json
@@ -72,6 +74,26 @@ class SaveFileRequest(BaseModel):
     filepath: str
     data: ExcalidrawFileData
 
+class SaveEmailRequest(BaseModel):
+    emailData: str
+    subject: str
+    currentPath: str
+
+class FileUploadResponse(BaseModel):
+    success: bool
+    files: List[Dict[str, Any]] = []
+    error: Optional[str] = None
+
+class FolderShortcutResponse(BaseModel):
+    success: bool
+    folderPath: Optional[str] = None
+    error: Optional[str] = None
+
+class EmailSaveResponse(BaseModel):
+    success: bool
+    savedPath: Optional[str] = None
+    error: Optional[str] = None
+
 def create_backup(filepath: str) -> bool:
     """バックアップを作成する関数"""
     try:
@@ -142,6 +164,46 @@ def create_backup(filepath: str) -> bool:
     except Exception as e:
         print(f"Error creating backup: {e}")
         return False
+
+def get_upload_directory(file_path: str, file_type: str = "general") -> Path:
+    """アップロードディレクトリを取得/作成"""
+    # ローカルストレージ用のパスかどうかをチェック
+    if file_path == '/Users/sudoupousei/000_work/excalidraw_myao9494/test/test.excalidraw':
+        # デフォルトのテストファイルの場合は通常のuploadsディレクトリ
+        base_dir = Path(file_path).parent
+        upload_dir = base_dir / "uploads"
+    elif not file_path or file_path.startswith('localStorage'):
+        # ローカルストレージの場合はプロジェクトルートのupload_localディレクトリ
+        base_dir = Path(__file__).parent.parent  # プロジェクトルート
+        upload_dir = base_dir / "upload_local"
+    else:
+        # 通常のファイルパスの場合は従来通り
+        base_dir = Path(file_path).parent
+        upload_dir = base_dir / "uploads"
+    
+    if file_type == "email":
+        upload_dir = upload_dir / "emails"
+    elif file_type == "image":
+        upload_dir = upload_dir / "images"
+    elif file_type == "folder":
+        upload_dir = upload_dir / "folders"
+    else:
+        upload_dir = upload_dir / "files"
+    
+    upload_dir.mkdir(parents=True, exist_ok=True)
+    return upload_dir
+
+def sanitize_filename(filename: str) -> str:
+    """ファイル名をサニタイズ"""
+    # 危険な文字を除去
+    import re
+    filename = re.sub(r'[<>:"/\\|?*]', '_', filename)
+    # 先頭末尾の空白とドットを除去
+    filename = filename.strip(' .')
+    # 空文字の場合はデフォルト名
+    if not filename:
+        filename = "untitled"
+    return filename
 
 @app.get("/")
 async def root():
@@ -219,6 +281,159 @@ async def save_file(request: SaveFileRequest):
     
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error saving file: {str(e)}")
+
+@app.post("/api/upload-files")
+async def upload_files(
+    files: List[UploadFile] = File(...),
+    current_path: str = Form(...),
+    file_type: str = Form("general")
+):
+    try:
+        if not files:
+            raise HTTPException(status_code=400, detail="No files provided")
+        
+        # アップロードディレクトリを取得
+        upload_dir = get_upload_directory(current_path, file_type)
+        
+        uploaded_files = []
+        
+        for file in files:
+            if not file.filename:
+                continue
+                
+            # ファイル名をサニタイズ
+            safe_filename = sanitize_filename(file.filename)
+            
+            # 重複回避のためタイムスタンプを追加
+            timestamp = str(int(time.time()))
+            name, ext = os.path.splitext(safe_filename)
+            unique_filename = f"{name}_{timestamp}{ext}"
+            
+            file_path = upload_dir / unique_filename
+            
+            # ファイルを保存
+            with open(file_path, "wb") as buffer:
+                content = await file.read()
+                buffer.write(content)
+            
+            uploaded_files.append({
+                "name": file.filename,
+                "path": str(file_path),
+                "size": len(content)
+            })
+        
+        return FileUploadResponse(
+            success=True,
+            files=uploaded_files
+        )
+        
+    except Exception as e:
+        import traceback
+        print("Upload error:", str(e))
+        print("Traceback:", traceback.format_exc())
+        raise HTTPException(status_code=500, detail=f"Error uploading files: {str(e)}")
+
+@app.post("/api/create-folder-shortcut")
+async def create_folder_shortcut(
+    folder_path: str = Form(...),
+    current_path: str = Form(...)
+):
+    try:
+        # フォルダショートカット用ディレクトリを取得
+        upload_dir = get_upload_directory(current_path, "folder")
+        
+        # フォルダ名を取得
+        folder_name = os.path.basename(folder_path.rstrip('/\\'))
+        if not folder_name:
+            folder_name = "folder"
+        
+        # ショートカットファイルを作成
+        timestamp = str(int(time.time()))
+        shortcut_filename = f"{sanitize_filename(folder_name)}_{timestamp}.txt"
+        shortcut_path = upload_dir / shortcut_filename
+        
+        # ショートカット内容を作成
+        shortcut_content = f"Folder Shortcut\nPath: {folder_path}\nCreated: {time.strftime('%Y-%m-%d %H:%M:%S')}"
+        
+        with open(shortcut_path, "w", encoding="utf-8") as f:
+            f.write(shortcut_content)
+        
+        return FolderShortcutResponse(
+            success=True,
+            folderPath=str(shortcut_path)
+        )
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error creating folder shortcut: {str(e)}")
+
+@app.post("/api/save-email")
+async def save_email(request: SaveEmailRequest):
+    try:
+        # メール用ディレクトリを取得
+        upload_dir = get_upload_directory(request.currentPath, "email")
+        
+        # 件名をファイル名として使用
+        safe_subject = sanitize_filename(request.subject)
+        if not safe_subject:
+            safe_subject = "email"
+        
+        # タイムスタンプを追加
+        timestamp = str(int(time.time()))
+        email_filename = f"{safe_subject}_{timestamp}.eml"
+        email_path = upload_dir / email_filename
+        
+        # メールデータを保存
+        with open(email_path, "w", encoding="utf-8") as f:
+            f.write(f"Subject: {request.subject}\n")
+            f.write(f"Date: {time.strftime('%Y-%m-%d %H:%M:%S')}\n")
+            f.write(f"Content-Type: text/plain; charset=utf-8\n\n")
+            f.write(request.emailData)
+        
+        return EmailSaveResponse(
+            success=True,
+            savedPath=str(email_path)
+        )
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error saving email: {str(e)}")
+
+# 静的ファイル配信の設定
+@app.get("/api/file/{file_path:path}")
+async def serve_uploaded_file(file_path: str):
+    """アップロードされたファイルを配信"""
+    try:
+        # セキュリティのため、uploads/upload_local ディレクトリ内のファイルのみ許可
+        if not (file_path.startswith('uploads/') or file_path.startswith('upload_local/')):
+            raise HTTPException(status_code=403, detail="Access denied")
+        
+        # ファイルの実際のパスを構築
+        # file_path は "uploads/files/filename.pdf" または "upload_local/files/filename.pdf" のような形式
+        base_path = Path(file_path).parts[0]  # "uploads" or "upload_local"
+        if len(Path(file_path).parts) < 3:
+            raise HTTPException(status_code=400, detail="Invalid file path")
+        
+        # ファイルパスから基準ディレクトリを推測
+        if file_path.startswith('upload_local/'):
+            # ローカルストレージ用ファイルの場合はプロジェクトルートから
+            actual_file_path = Path(__file__).parent.parent / file_path
+        else:
+            # 通常は excalidraw ファイルと同じディレクトリ構造
+            actual_file_path = Path(file_path)
+        
+        # ファイルが存在するか確認
+        if not actual_file_path.exists():
+            raise HTTPException(status_code=404, detail="File not found")
+        
+        # ファイルを返す
+        return FileResponse(
+            path=str(actual_file_path),
+            filename=actual_file_path.name,
+            media_type='application/octet-stream'
+        )
+    
+    except Exception as e:
+        print(f"Error serving file {file_path}: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Error serving file: {str(e)}")
 
 if __name__ == "__main__":
     import uvicorn

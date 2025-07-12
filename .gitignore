@@ -9,3 +9,5 @@ backend/__pycache__/
 *.env
 *.DS_Store
 *.egg-info/
+test/
+upload_local/

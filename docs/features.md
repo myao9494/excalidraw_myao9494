@@ -256,9 +256,221 @@ for i in range(10):
         break
 ```
 
-## 4. バックエンドAPI仕様
+## 4. ドラッグ&ドロップ機能
 
-### 4.1 ファイル読み込みAPI
+### 4.1 ファイルドロップ処理
+
+#### 対応ファイル形式
+**画像ファイル**
+- 対応形式: PNG, JPEG, GIF, WebP等
+- 処理: 画像要素として直接配置
+- リサイズ: 最大400px（アスペクト比維持）
+
+**メールファイル**
+- 対応形式: .eml, .msg
+- 処理: 青色のメール付箋を作成
+- リンク: ファイルのフルパスを設定
+
+**一般ファイル**
+- 対応形式: PDF, DOC, TXT, ZIP等
+- 処理: 黄色の付箋を作成
+- リンク: ファイルのフルパスを設定
+
+#### フルパスリンク機能
+**機能概要**
+- ドロップしたファイルの付箋には完全なファイルパスがリンクとして設定される
+
+**技術実装**
+```typescript
+const elements = createStickyNoteElementsWithFullPath(
+  coordinates.viewportX,
+  coordinates.viewportY,
+  file.name,
+  result.files[0].path  // フルパス
+);
+```
+
+**付箋構造**
+- 矩形要素: フルパスリンク
+- テキスト要素: フルパスリンク
+- クリック動作: ローカルファイルシステムでファイルを開く
+
+### 4.2 フォルダドロップ処理
+
+#### フォルダショートカット作成
+**機能概要**
+- フォルダをドロップするとショートカット付箋を作成
+
+**動作詳細**
+1. フォルダのドロップを検知
+2. フォルダパスを取得
+3. バックエンドAPIでショートカットファイルを作成
+4. 付箋をキャンバスに配置
+
+**API呼び出し**
+```typescript
+const formData = new FormData();
+formData.append('folder_path', entry.fullPath);
+formData.append('current_path', filePath);
+
+const response = await fetch('http://localhost:8000/api/create-folder-shortcut', {
+  method: 'POST',
+  body: formData
+});
+```
+
+### 4.3 Outlookメール対応
+
+#### メールデータ検出
+**対応データ形式**
+- `text/x-moz-url`
+- `application/x-moz-file`
+- `text/rtf`
+- `text/html`（ファイルなし）
+- `text/plain`（ファイルなし）
+
+**検出ロジック**
+```typescript
+export const detectOutlookData = (dataTransfer: DataTransfer): boolean => {
+  return dataTransfer.types.includes('text/x-moz-url') || 
+         dataTransfer.types.includes('application/x-moz-file') ||
+         (dataTransfer.types.includes('text/plain') && dataTransfer.files.length === 0);
+};
+```
+
+#### 件名抽出
+**抽出方法**
+1. 各データ形式からテキストを取得
+2. 最初の行を件名として使用
+3. HTMLデータの場合はテキスト内容を抽出
+
+```typescript
+if (type === 'text/plain' && data) {
+  const lines = data.split('\n');
+  if (lines.length > 0) {
+    subject = lines[0].trim() || 'Outlook Email';
+  }
+}
+```
+
+### 4.4 座標変換システム
+
+#### ビューポート座標からシーン座標への変換
+**機能概要**
+- ドロップ位置をExcalidrawの内部座標系に正確に変換
+
+**変換計算**
+```typescript
+export const convertToSceneCoordinates = (
+  clientX: number,
+  clientY: number,
+  containerRect: DOMRect,
+  appState: { zoom: { value: number }; scrollX: number; scrollY: number }
+): DropCoordinates => {
+  const x = clientX - containerRect.left;
+  const y = clientY - containerRect.top;
+  
+  const viewportX = (appState.scrollX * -1) + x / appState.zoom.value;
+  const viewportY = (appState.scrollY * -1) + y / appState.zoom.value;
+  
+  return { x, y, viewportX, viewportY };
+};
+```
+
+**考慮要素**
+- ズーム倍率（`appState.zoom.value`）
+- スクロール位置（`appState.scrollX`, `appState.scrollY`）
+- コンテナの境界矩形（`containerRect`）
+
+### 4.5 ファイルアップロード処理
+
+#### アップロード先ディレクトリ
+**ローカルストレージ使用時**
+- アップロード先: `プロジェクトルート/upload_local/`
+- サブディレクトリ構造:
+  - `upload_local/files/` - 一般ファイル
+  - `upload_local/images/` - 画像ファイル
+  - `upload_local/emails/` - メールファイル
+  - `upload_local/folders/` - フォルダショートカット
+
+**通常ファイル使用時**
+- アップロード先: `ファイルと同じディレクトリ/uploads/`
+
+**ディレクトリ決定ロジック**
+```python
+def get_upload_directory(file_path: str, file_type: str = "general") -> Path:
+    if not file_path or file_path.startswith('localStorage'):
+        base_dir = Path(__file__).parent.parent  # プロジェクトルート
+        upload_dir = base_dir / "upload_local"
+    else:
+        base_dir = Path(file_path).parent
+        upload_dir = base_dir / "uploads"
+    
+    # ファイル種別によるサブディレクトリ
+    if file_type == "email":
+        upload_dir = upload_dir / "emails"
+    elif file_type == "image":
+        upload_dir = upload_dir / "images"
+    # ...
+```
+
+### 4.6 画像処理機能
+
+#### 自動リサイズ
+**機能概要**
+- 大きな画像を400px最大サイズにリサイズ（アスペクト比維持）
+
+**リサイズロジック**
+```typescript
+export const resizeImage = (
+  originalWidth: number,
+  originalHeight: number,
+  maxSize: number = 400
+): { width: number; height: number } => {
+  let width = originalWidth;
+  let height = originalHeight;
+
+  if (width > height) {
+    if (width > maxSize) {
+      height = (height * maxSize) / width;
+      width = maxSize;
+    }
+  } else {
+    if (height > maxSize) {
+      width = (width * maxSize) / height;
+      height = maxSize;
+    }
+  }
+
+  return { width, height };
+};
+```
+
+#### 画像要素作成
+**要素仕様**
+- 中央配置: ドロップ位置を中心に配置
+- ファイルID: ランダム生成
+- スケール: [1, 1]
+
+```typescript
+export const createImageElement = (
+  x: number, y: number, width: number, height: number, fileId: string
+): NonDeletedExcalidrawElement => {
+  return {
+    type: "image",
+    x: x - width / 2,
+    y: y - height / 2,
+    width, height,
+    fileId,
+    scale: [1, 1] as [number, number],
+    // ... その他のプロパティ
+  };
+};
+```
+
+## 5. バックエンドAPI仕様
+
+### 5.1 ファイル読み込みAPI
 
 #### GET /api/load-file
 **パラメータ**
@@ -279,7 +491,7 @@ for i in range(10):
 }
 ```
 
-### 4.2 ファイル情報取得API
+### 5.2 ファイル情報取得API
 
 #### GET /api/file-info
 **パラメータ**
@@ -293,7 +505,7 @@ for i in range(10):
 }
 ```
 
-### 4.3 ファイル保存API
+### 5.3 ファイル保存API
 
 #### POST /api/save-file
 **リクエストボディ**
@@ -319,9 +531,95 @@ for i in range(10):
 }
 ```
 
-## 5. エラーハンドリング
+### 5.4 ファイルアップロードAPI
 
-### 5.1 クリップボードアクセスエラー
+#### POST /api/upload-files
+**概要**
+- 複数ファイルのアップロードに対応
+- ファイル種別により適切なディレクトリに保存
+
+**リクエスト**
+- Content-Type: `multipart/form-data`
+- files: アップロードするファイル群
+- current_path: 現在のファイルパス
+- file_type: ファイル種別（general, email, image）
+
+**レスポンス**
+```json
+{
+  "success": true,
+  "files": [
+    {
+      "name": "document.pdf",
+      "path": "/path/to/upload_local/files/document_1234567890.pdf",
+      "size": 1024000
+    }
+  ]
+}
+```
+
+### 5.5 フォルダショートカット作成API
+
+#### POST /api/create-folder-shortcut
+**概要**
+- フォルダのショートカットファイルを作成
+
+**リクエスト**
+- Content-Type: `multipart/form-data`
+- folder_path: フォルダのパス
+- current_path: 現在のファイルパス
+
+**レスポンス**
+```json
+{
+  "success": true,
+  "folderPath": "/path/to/upload_local/folders/FolderName_1234567890.txt"
+}
+```
+
+### 5.6 メール保存API
+
+#### POST /api/save-email
+**概要**
+- Outlookメールデータを.emlファイルとして保存
+
+**リクエストボディ**
+```json
+{
+  "emailData": "メールの内容データ",
+  "subject": "メールの件名",
+  "currentPath": "/path/to/current/file.excalidraw"
+}
+```
+
+**レスポンス**
+```json
+{
+  "success": true,
+  "savedPath": "/path/to/upload_local/emails/subject_1234567890.eml"
+}
+```
+
+### 5.7 アップロードファイル配信API
+
+#### GET /api/file/{file_path:path}
+**概要**
+- アップロードされたファイルをWebブラウザから配信
+
+**パラメータ**
+- file_path: `uploads/` または `upload_local/` から始まるファイルパス
+
+**セキュリティ**
+- `uploads/` または `upload_local/` ディレクトリ内のファイルのみアクセス可能
+- ディレクトリトラバーサル攻撃を防止
+
+**レスポンス**
+- Content-Type: `application/octet-stream`
+- ファイルのバイナリデータ
+
+## 6. エラーハンドリング
+
+### 6.1 クリップボードアクセスエラー
 **エラー条件**
 - HTTPS環境またはlocalhost環境以外でのアクセス
 - ブラウザがクリップボードAPIに対応していない
@@ -330,7 +628,7 @@ for i in range(10):
 - エラーメッセージを表示
 - 機能を無効化
 
-### 5.2 ファイルアクセスエラー
+### 6.2 ファイルアクセスエラー
 **エラー条件**
 - ファイルが存在しない
 - ファイルの読み込み権限がない
@@ -340,7 +638,7 @@ for i in range(10):
 - 404エラー時は初期データを使用
 - その他のエラーは適切なエラーメッセージを表示
 
-### 5.3 バックアップエラー
+### 6.3 バックアップエラー
 **エラー条件**
 - バックアップディレクトリの作成に失敗
 - バックアップファイルの書き込みに失敗
@@ -349,16 +647,70 @@ for i in range(10):
 - エラーログを出力
 - 元ファイルの保存処理は継続
 
-## 6. パフォーマンス最適化
+### 6.4 ドラッグ&ドロップエラー
 
-### 6.1 変更検知の最適化
+#### ファイルアップロードエラー
+**エラー条件**
+- バックエンドサーバーが停止している
+- ファイルサイズが制限を超過
+- 対応していないファイル形式
+
+**対応**
+- ネットワークエラー: 接続状態を確認するメッセージを表示
+- サイズ制限: ファイルサイズ制限のメッセージを表示
+- 形式エラー: 対応形式の一覧を表示
+
+#### 座標変換エラー
+**エラー条件**
+- ExcalidrawAPIが初期化されていない
+- コンテナ要素が取得できない
+
+**対応**
+- API未初期化: 初期化完了まで処理を延期
+- コンテナエラー: デフォルト座標(0, 0)を使用
+
+#### メールデータ解析エラー
+**エラー条件**
+- Outlookデータの形式が予期しないもの
+- 件名の抽出に失敗
+
+**対応**
+- データ形式エラー: 「Outlook Email」をデフォルト件名として使用
+- 解析失敗: エラーログを出力し、処理を継続
+
+## 7. パフォーマンス最適化
+
+### 7.1 変更検知の最適化
 - JSON文字列化による高速な変更検知
 - 不要な保存処理の削除
 
-### 6.2 ファイル監視の最適化
+### 7.2 ファイル監視の最適化
 - 5秒間隔での適切な監視頻度
 - 変更がない場合の処理スキップ
 
-### 6.3 メモリ使用量の最適化
+### 7.3 メモリ使用量の最適化
 - 大きなファイルの適切な処理
 - 不要なデータの適切な開放
+
+### 7.4 ドラッグ&ドロップ最適化
+
+#### イベント処理の最適化
+- ドラッグオーバーイベントの効率的な処理
+- 不要なイベント伝播の停止
+- キャプチャフェーズでのイベント処理
+
+```typescript
+// 効率的なイベント処理
+document.addEventListener('dragover', preventDefaultDragOver, true);
+document.addEventListener('drop', handleDrop, true);
+```
+
+#### 画像処理の最適化
+- 大きな画像の自動リサイズ（400px制限）
+- アスペクト比を維持した効率的なリサイズ
+- メモリ使用量を考慮した画像処理
+
+#### ファイルアップロードの最適化
+- 並列処理による複数ファイルの効率的なアップロード
+- 適切なタイムスタンプによる重複回避
+- ファイル名のサニタイズ処理

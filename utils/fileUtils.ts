@@ -84,3 +84,96 @@ export const saveExcalidrawFile = async (filePath: string, data: ExcalidrawFileD
     return false;
   }
 };
+
+export const uploadFiles = async (
+  files: File[], 
+  currentPath: string, 
+  fileType: string = 'general'
+): Promise<{ success: boolean; files?: Array<{name: string; path: string; size: number}>; error?: string }> => {
+  try {
+    const formData = new FormData();
+    files.forEach(file => formData.append('files', file));
+    formData.append('current_path', currentPath);
+    formData.append('file_type', fileType);
+
+    const response = await fetch(`${API_BASE_URL}/api/upload-files`, {
+      method: 'POST',
+      body: formData
+    });
+
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+
+    const result = await response.json();
+    return result;
+  } catch (error) {
+    console.error('Error uploading files:', error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error'
+    };
+  }
+};
+
+export const createFolderShortcut = async (
+  folderPath: string,
+  currentPath: string
+): Promise<{ success: boolean; folderPath?: string; error?: string }> => {
+  try {
+    const formData = new FormData();
+    formData.append('folder_path', folderPath);
+    formData.append('current_path', currentPath);
+
+    const response = await fetch(`${API_BASE_URL}/api/create-folder-shortcut`, {
+      method: 'POST',
+      body: formData
+    });
+
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+
+    const result = await response.json();
+    return result;
+  } catch (error) {
+    console.error('Error creating folder shortcut:', error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error'
+    };
+  }
+};
+
+export const saveEmail = async (
+  emailData: string,
+  subject: string,
+  currentPath: string
+): Promise<{ success: boolean; savedPath?: string; error?: string }> => {
+  try {
+    const response = await fetch(`${API_BASE_URL}/api/save-email`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        emailData,
+        subject,
+        currentPath
+      })
+    });
+
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+
+    const result = await response.json();
+    return result;
+  } catch (error) {
+    console.error('Error saving email:', error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error'
+    };
+  }
+};

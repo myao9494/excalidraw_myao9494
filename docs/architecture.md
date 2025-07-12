@@ -12,50 +12,62 @@ graph TB
         subgraph "カスタムフック"
             E[useKeyboardShortcuts]
             F[useMousePosition]
+            G[useDragAndDrop]
         end
         
         subgraph "ユーティリティ"
-            G[stickyNoteUtils]
-            H[fileUtils]
-            I[localStorage]
+            H[stickyNoteUtils]
+            I[fileUtils]
+            J[localStorage]
+            K[dragDropUtils]
+            L[emailUtils]
         end
         
         C --> E
         C --> F
-        E --> G
-        C --> H
+        C --> G
+        E --> H
+        G --> K
+        G --> L
         C --> I
+        C --> J
     end
     
     subgraph "バックエンド (FastAPI)"
-        J[FastAPI Server]
-        K[CORS Middleware]
-        L[File Operations]
-        M[Backup System]
+        M[FastAPI Server]
+        N[CORS Middleware]
+        O[File Operations]
+        P[Backup System]
+        Q[Upload System]
         
-        J --> K
-        J --> L
-        J --> M
+        M --> N
+        M --> O
+        M --> P
+        M --> Q
     end
     
     subgraph "ファイルシステム"
-        N["元ファイル<br/>(.excalidraw)"]
-        O["バックアップフォルダ<br/>(backup/)"]
-        P["バックアップファイル<br/>(*_backup_*.excalidraw)"]
+        R["元ファイル<br/>(.excalidraw)"]
+        S["バックアップフォルダ<br/>(backup/)"]
+        T["バックアップファイル<br/>(*_backup_*.excalidraw)"]
+        U["アップロードフォルダ<br/>(upload_local/)"]
+        V["アップロードファイル<br/>(各種ファイル)"]
         
-        N --> O
-        O --> P
+        R --> S
+        S --> T
+        U --> V
     end
     
     subgraph "外部エディタ"
-        Q["VSCode<br/>Excalidraw Extension"]
+        W["VSCode<br/>Excalidraw Extension"]
     end
     
     %% 接続関係
-    H --> J
-    L --> N
-    M --> P
-    Q --> N
+    I --> M
+    O --> R
+    P --> T
+    Q --> U
+    W --> R
     
     %% スタイル
     classDef frontend fill:#e1f5fe
@@ -63,10 +75,10 @@ graph TB
     classDef filesystem fill:#e8f5e8
     classDef external fill:#fff3e0
     
-    class A,B,C,D,E,F,G,H,I frontend
-    class J,K,L,M backend
-    class N,O,P filesystem
-    class Q external
+    class A,B,C,D,E,F,G,H,I,J,K,L frontend
+    class M,N,O,P,Q backend
+    class R,S,T,U,V filesystem
+    class W external
 ```
 
 ## データフロー
@@ -115,6 +127,26 @@ sequenceDiagram
     User->>App: キー入力 (N, W, C, Ctrl+M, Ctrl+B)
     App->>App: ショートカット処理
     App->>App: 要素作成・操作
+    
+    Note over User,VSCode: 5. ドラッグ&ドロップ
+    User->>App: ファイルをドロップ
+    App->>App: 座標変換・ファイル種別判定
+    App->>API: POST /api/upload-files
+    API->>FS: ファイル保存 (upload_local/)
+    FS-->>API: 保存パス
+    API-->>App: アップロード結果
+    App->>App: フルパス付き付箋作成
+    App->>App: Excalidrawに要素追加
+    
+    Note over User,VSCode: 6. Outlookメールドロップ
+    User->>App: Outlookメールをドロップ
+    App->>App: メールデータ検出・件名抽出
+    App->>API: POST /api/save-email
+    API->>FS: .emlファイル保存
+    FS-->>API: 保存パス
+    API-->>App: 保存結果
+    App->>App: メール付箋作成（青色）
+    App->>App: Excalidrawに要素追加
     App->>API: POST /api/save-file
     API->>FS: ファイル保存
 ```
