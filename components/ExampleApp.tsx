@@ -34,6 +34,7 @@ import {
   loadExcalidrawFile, 
   saveExcalidrawFile,
   getFileInfo,
+  handleStickyNoteLink,
   type ExcalidrawFileData
 } from "../utils/fileUtils";
 
@@ -388,6 +389,13 @@ export default function ExampleApp({
         ) => {
           // デバウンス処理を使用して保存
           debouncedSave(elements, state, files);
+        },
+        onLinkOpen: (element: NonDeletedExcalidrawElement, event: PointerEvent) => {
+          // 付箋のリンククリック処理をカスタマイズ
+          if (element.link) {
+            event.preventDefault();
+            handleStickyNoteLink(element.link);
+          }
         },
       },
     );

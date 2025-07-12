@@ -177,3 +177,43 @@ export const saveEmail = async (
     };
   }
 };
+
+/**
+ * ファイルパスがExcalidrawファイルかどうかを判定
+ */
+export const isExcalidrawFile = (filePath: string): boolean => {
+  if (!filePath) return false;
+  const extension = filePath.toLowerCase().split('.').pop();
+  return extension === 'excalidraw';
+};
+
+/**
+ * 付箋のリンククリック処理
+ * Excalidrawファイル以外は外部ファイルビューアーにリダイレクト
+ */
+export const handleStickyNoteLink = (linkUrl: string): void => {
+  try {
+    // URLの場合はそのまま開く
+    if (linkUrl.startsWith('http://') || linkUrl.startsWith('https://')) {
+      window.open(linkUrl, '_blank');
+      return;
+    }
+
+    // ファイルパスの場合
+    if (isExcalidrawFile(linkUrl)) {
+      // Excalidrawファイルの場合は現在のアプリで開く
+      const currentUrl = new URL(window.location.href);
+      currentUrl.searchParams.set('filepath', linkUrl);
+      window.location.href = currentUrl.toString();
+    } else {
+      // Excalidraw以外のファイルは外部ファイルビューアーの/fullpathエンドポイントで開く
+      // URLエンコードせずに、クエリパラメータとして直接渡す
+      const fileViewerUrl = `http://localhost:5001/fullpath?path=${linkUrl}`;
+      window.open(fileViewerUrl, '_blank');
+    }
+  } catch (error) {
+    console.error('Error handling sticky note link:', error);
+    // エラーの場合は元のリンクをそのまま開く
+    window.open(linkUrl, '_blank');
+  }
+};
