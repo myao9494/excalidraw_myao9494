@@ -35,7 +35,7 @@ graph TB
     
     subgraph "バックエンド (FastAPI)"
         M[FastAPI Server]
-        N[CORS Middleware]
+        N[CORS Middleware - VPN対応]
         O[File Operations]
         P[Backup System]
         Q[Upload System]
@@ -58,8 +58,9 @@ graph TB
         U --> V
     end
     
-    subgraph "外部エディタ"
+    subgraph "外部アクセス"
         W["VSCode<br/>Excalidraw Extension"]
+        X["Tailscale VPN<br/>リモートアクセス"]
     end
     
     %% 接続関係
@@ -68,6 +69,7 @@ graph TB
     P --> T
     Q --> U
     W --> R
+    X --> M
     
     %% スタイル
     classDef frontend fill:#e1f5fe
@@ -78,7 +80,7 @@ graph TB
     class A,B,C,D,E,F,G,H,I,J,K,L frontend
     class M,N,O,P,Q backend
     class R,S,T,U,V filesystem
-    class W external
+    class W,X external
 ```
 
 ## データフロー

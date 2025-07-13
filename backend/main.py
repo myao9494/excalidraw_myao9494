@@ -12,10 +12,10 @@ from typing import Dict, List, Any, Optional
 
 app = FastAPI(title="Excalidraw File API")
 
-# CORS設定
+# CORS設定 - Tailscale VPN対応
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3001"],  # フロントエンドのURL
+    allow_origins=["*"],  # VPNアクセス用に全許可
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

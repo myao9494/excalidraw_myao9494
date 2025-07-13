@@ -109,6 +109,20 @@ python -m uvicorn main:app --reload --host 0.0.0.0 --port 8000
 npm start
 ```
 
+### Tailscale VPN対応
+
+このアプリケーションはTailscale VPN環境での使用に対応しています。
+
+#### VPN経由でのアクセス
+
+1. **設定済み**: CORS設定とサーバーホスト設定は既にVPN対応済み
+2. **アクセス方法**: TailscaleのIPアドレス（例：`100.x.x.x`）を使用
+   ```
+   フロントエンド: http://100.x.x.x:3001
+   バックエンド: http://100.x.x.x:8000
+   ```
+3. **セキュリティ**: VPN内での全アクセス許可（allow_origins=["*"]）
+
 ### 4. ビルド
 
 ```bash
