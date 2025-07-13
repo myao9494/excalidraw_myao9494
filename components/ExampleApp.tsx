@@ -514,6 +514,29 @@ export default function ExampleApp({
   const handleLibraryChange = useCallback(async (libraryItems: any[]) => {
     console.log(`ライブラリが変更されました: ${libraryItems.length} アイテム`);
     
+    // 空のライブラリデータの保存を防止
+    if (!libraryItems || libraryItems.length === 0) {
+      console.warn('空のライブラリデータの保存をスキップしました');
+      return;
+    }
+    
+    // 既存のライブラリファイルの内容を確認
+    try {
+      const currentResponse = await fetch('/excalidraw_lib/my_lib.excalidrawlib');
+      if (currentResponse.ok) {
+        const currentContent = await currentResponse.text();
+        const currentData = JSON.parse(currentContent);
+        
+        // 現在のファイルにデータがあり、新しいデータが空の場合は保存しない
+        if (currentData.libraryItems && currentData.libraryItems.length > 0 && libraryItems.length === 0) {
+          console.warn('既存のライブラリデータを保護するため、空のデータでの上書きをスキップしました');
+          return;
+        }
+      }
+    } catch (error) {
+      console.warn('既存ライブラリファイルの確認に失敗:', error);
+    }
+    
     try {
       const libraryData = {
         type: "excalidrawlib",

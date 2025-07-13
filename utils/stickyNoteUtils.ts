@@ -46,8 +46,8 @@ export const STICKY_NOTE_COLORS: StickyNoteColors = {
  * 付箋のデフォルトサイズ
  */
 export const DEFAULT_STICKY_NOTE_SIZE = {
-  width: 200,   // 幅
-  height: 50    // 高さ
+  width: 300,   // 幅
+  height: 200    // 高さ
 };
 
 /**
@@ -124,7 +124,7 @@ export const createStickyNote = (options: StickyNoteOptions): NonDeletedExcalidr
     versionNonce: Math.floor(Math.random() * 1000000),
     isDeleted: false,
     text,                        // 表示テキスト
-    fontSize: 16,
+    fontSize: 20,
     fontFamily: 1,
     textAlign: 'left',
     verticalAlign: 'top',
