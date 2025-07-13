@@ -350,12 +350,25 @@ export default function ExampleApp({
     const currentFilePathValue = currentFilePathRef.current;
     if (!currentFilePathValue) return true; // ローカルストレージの場合は常に保存
 
-    // 要素数が変わった場合は重要な変更
+    // 包括的な変更検知：すべての重要なプロパティを含む
     const currentSummary = {
       count: elements.length,
       ids: elements.map(el => el.id).sort().join(','),
-      // 1px単位で変更を検知
-      positions: elements.map(el => `${el.id}:${Math.round(el.x)},${Math.round(el.y)}`).sort().join('|')
+      // 位置・サイズ・回転を1px/1度単位で検知
+      geometry: elements.map(el => `${el.id}:${Math.round(el.x)},${Math.round(el.y)},${Math.round(el.width)},${Math.round(el.height)},${Math.round(el.angle || 0)}`).sort().join('|'),
+      // テキスト内容の変更を検知
+      texts: elements.filter(el => el.type === 'text').map(el => `${el.id}:${el.text || ''}`).sort().join('|'),
+      // スタイル変更を検知（色、線の太さ、フィルなど）
+      styles: elements.map(el => `${el.id}:${el.strokeColor},${el.backgroundColor},${el.fillStyle},${el.strokeWidth},${el.roughness},${el.opacity}`).sort().join('|'),
+      // 矢印やリンクなどの追加プロパティ
+      extras: elements.map(el => {
+        const extras = [];
+        if (el.type === 'arrow' && el.startArrowhead) extras.push(`start:${el.startArrowhead}`);
+        if (el.type === 'arrow' && el.endArrowhead) extras.push(`end:${el.endArrowhead}`);
+        if (el.link) extras.push(`link:${el.link}`);
+        if (el.groupIds && el.groupIds.length > 0) extras.push(`groups:${el.groupIds.join(',')}`);
+        return `${el.id}:${extras.join(';')}`;
+      }).sort().join('|')
     };
     
     const currentSummaryString = JSON.stringify(currentSummary);
@@ -428,11 +441,25 @@ export default function ExampleApp({
 
     const currentFilePathValue = currentFilePathRef.current;
     if (currentFilePathValue) {
-      // サマリーベースの変更検知を使用
+      // 包括的な変更検知を使用（isSignificantChangeと同じロジック）
       const currentSummary = {
         count: elements.length,
         ids: elements.map(el => el.id).sort().join(','),
-        positions: elements.map(el => `${el.id}:${Math.round(el.x)},${Math.round(el.y)}`).sort().join('|')
+        // 位置・サイズ・回転を1px/1度単位で検知
+        geometry: elements.map(el => `${el.id}:${Math.round(el.x)},${Math.round(el.y)},${Math.round(el.width)},${Math.round(el.height)},${Math.round(el.angle || 0)}`).sort().join('|'),
+        // テキスト内容の変更を検知
+        texts: elements.filter(el => el.type === 'text').map(el => `${el.id}:${el.text || ''}`).sort().join('|'),
+        // スタイル変更を検知（色、線の太さ、フィルなど）
+        styles: elements.map(el => `${el.id}:${el.strokeColor},${el.backgroundColor},${el.fillStyle},${el.strokeWidth},${el.roughness},${el.opacity}`).sort().join('|'),
+        // 矢印やリンクなどの追加プロパティ
+        extras: elements.map(el => {
+          const extras = [];
+          if (el.type === 'arrow' && el.startArrowhead) extras.push(`start:${el.startArrowhead}`);
+          if (el.type === 'arrow' && el.endArrowhead) extras.push(`end:${el.endArrowhead}`);
+          if (el.link) extras.push(`link:${el.link}`);
+          if (el.groupIds && el.groupIds.length > 0) extras.push(`groups:${el.groupIds.join(',')}`);
+          return `${el.id}:${extras.join(';')}`;
+        }).sort().join('|')
       };
       const currentSummaryString = JSON.stringify(currentSummary);
       
