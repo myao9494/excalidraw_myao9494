@@ -450,6 +450,31 @@ export default function ExampleApp({
     }
   }, []);
 
+  // ウィンドウを閉じる前に自動保存を実行
+  useEffect(() => {
+    const handleBeforeUnload = (event: BeforeUnloadEvent) => {
+      // 保存待機中のタイマーがある場合は即座に保存実行
+      if (saveTimeoutRef.current) {
+        clearTimeout(saveTimeoutRef.current);
+        saveTimeoutRef.current = null;
+        
+        // 最新の状態を取得して保存
+        if (excalidrawAPI) {
+          const elements = excalidrawAPI.getSceneElements();
+          const appState = excalidrawAPI.getAppState();
+          const files = excalidrawAPI.getFiles();
+          performSave(elements, appState, files);
+        }
+      }
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+    };
+  }, [excalidrawAPI, performSave]);
+
   // コンポーネントのクリーンアップ時にタイマーをクリア
   useEffect(() => {
     return () => {
