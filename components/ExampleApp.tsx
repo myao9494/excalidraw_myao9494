@@ -231,6 +231,34 @@ export default function ExampleApp({
         };
       }
       
+      // ライブラリファイルをロードしてlibraryItemsに追加
+      try {
+        const response = await fetch('/excalidraw_lib/my_lib.excalidrawlib');
+        if (response.ok) {
+          const libraryContent = await response.text();
+          const libraryData = JSON.parse(libraryContent);
+          
+          if (libraryData.libraryItems) {
+            // 各ライブラリアイテムと要素のIDを新しい一意のIDに更新
+            const updatedLibraryItems = libraryData.libraryItems.map((item: any) => ({
+              ...item,
+              id: `lib-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+              elements: item.elements?.map((element: any) => ({
+                ...element,
+                id: `elem-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+                // グループIDも更新
+                groupIds: element.groupIds?.map(() => `group-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`)
+              }))
+            }));
+            
+            dataToLoad.libraryItems = updatedLibraryItems;
+            console.log(`ライブラリを読み込みました: ${updatedLibraryItems.length} アイテム`);
+          }
+        }
+      } catch (error) {
+        console.warn('ライブラリファイルの読み込みに失敗しました:', error);
+      }
+      
       //@ts-ignore
       initialStatePromiseRef.current.promise.resolve(dataToLoad);
     };
@@ -432,6 +460,39 @@ export default function ExampleApp({
     };
   }, []);
 
+  // ライブラリ変更時の自動保存処理
+  const handleLibraryChange = useCallback(async (libraryItems: any[]) => {
+    console.log(`ライブラリが変更されました: ${libraryItems.length} アイテム`);
+    
+    try {
+      const libraryData = {
+        type: "excalidrawlib",
+        version: 2,
+        source: window.location.origin,
+        libraryItems
+      };
+      
+      const response = await fetch('http://localhost:8000/save-library', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          file_path: 'public/excalidraw_lib/my_lib.excalidrawlib',
+          data: libraryData
+        })
+      });
+      
+      if (response.ok) {
+        console.log('ライブラリが自動保存されました');
+      } else {
+        console.error('ライブラリの保存に失敗しました');
+      }
+    } catch (error) {
+      console.error('ライブラリ保存中にエラーが発生しました:', error);
+    }
+  }, []);
+
   const renderExcalidraw = (children: React.ReactNode) => {
     const Excalidraw: any = Children.toArray(children).find(
       (child) =>
@@ -456,6 +517,7 @@ export default function ExampleApp({
           // デバウンス処理を使用して保存
           debouncedSave(elements, state, files);
         },
+        onLibraryChange: handleLibraryChange,
         onLinkOpen: (element: NonDeletedExcalidrawElement, event: PointerEvent) => {
           // 付箋のリンククリック処理をカスタマイズ
           if (element.link) {

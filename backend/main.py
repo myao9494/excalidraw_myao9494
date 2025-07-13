@@ -94,6 +94,15 @@ class EmailSaveResponse(BaseModel):
     savedPath: Optional[str] = None
     error: Optional[str] = None
 
+class SaveLibraryRequest(BaseModel):
+    file_path: str
+    data: Dict[str, Any]
+
+class SaveLibraryResponse(BaseModel):
+    success: bool
+    message: Optional[str] = None
+    error: Optional[str] = None
+
 def create_backup(filepath: str) -> bool:
     """バックアップを作成する関数"""
     try:
@@ -396,6 +405,33 @@ async def save_email(request: SaveEmailRequest):
         
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error saving email: {str(e)}")
+
+@app.post("/save-library")
+async def save_library(request: SaveLibraryRequest):
+    """ライブラリファイルを保存するエンドポイント"""
+    try:
+        # プロジェクトルートからの相対パスを解決
+        project_root = Path(__file__).parent.parent  # backendディレクトリの親ディレクトリ
+        file_path = project_root / request.file_path
+        
+        # ディレクトリが存在しない場合は作成
+        file_path.parent.mkdir(parents=True, exist_ok=True)
+        
+        # ライブラリファイルに保存
+        with open(file_path, 'w', encoding='utf-8') as f:
+            json.dump(request.data, f, ensure_ascii=False, indent=2)
+        
+        return SaveLibraryResponse(
+            success=True,
+            message=f"Library saved to {file_path}"
+        )
+    
+    except Exception as e:
+        print(f"Error saving library: {str(e)}")
+        return SaveLibraryResponse(
+            success=False,
+            error=f"Error saving library: {str(e)}"
+        )
 
 # 静的ファイル配信の設定
 @app.get("/api/file/{file_path:path}")

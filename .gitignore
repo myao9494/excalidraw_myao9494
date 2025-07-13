@@ -11,3 +11,4 @@ backend/__pycache__/
 *.egg-info/
 test/
 upload_local/
+personal/backup/
