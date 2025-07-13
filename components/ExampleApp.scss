@@ -38,6 +38,52 @@
   display: flex;
 }
 
+// カスタムヘッダーのスタイル
+.custom-header {
+  position: fixed;
+  top: 8px;
+  left: 60px;
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  
+  .header-actions {
+    display: flex;
+    gap: 4px;
+  }
+  
+  .header-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    border: none;
+    border-radius: 6px;
+    background: var(--color-surface-low);
+    color: var(--color-text);
+    cursor: pointer;
+    transition: all 0.2s ease;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    
+    &:hover {
+      background: var(--color-surface-high);
+      transform: translateY(-1px);
+      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+    }
+    
+    &:active {
+      transform: translateY(0);
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    }
+    
+    svg {
+      pointer-events: none;
+    }
+  }
+}
+
 .excalidraw-wrapper {
   height: 100vh;
   width: 100vw;

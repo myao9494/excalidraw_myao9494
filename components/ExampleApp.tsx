@@ -42,6 +42,54 @@ import "./ExampleApp.scss";
 
 import type { ResolvablePromise } from "../utils";
 
+/**
+ * 新規ファイル作成用のダイアログを表示する
+ */
+const showNewFileDialog = (currentFolder: string | null) => {
+  const fileName = prompt("新しいファイル名を入力してください（拡張子なし）:");
+  if (fileName && fileName.trim()) {
+    const normalizedFolder = currentFolder ? normalizePath(currentFolder) : null;
+    const fullPath = normalizedFolder 
+      ? `${normalizedFolder}/${fileName.trim()}.excalidraw`
+      : `${fileName.trim()}.excalidraw`;
+    
+    // 新しいファイルのURLにリダイレクト（パスをエンコードしない）
+    window.location.href = `${window.location.origin}${window.location.pathname}?filepath=${fullPath}`;
+  }
+};
+
+/**
+ * パスを/区切りに正規化する
+ */
+const normalizePath = (path: string): string => {
+  return path.replace(/\\/g, '/');
+};
+
+/**
+ * ファイル選択ダイアログを表示する（ファイルビューアーを使用）
+ */
+const showOpenFileDialog = (currentFolder: string | null) => {
+  // デフォルトのフォルダパス
+  let folderPath = '/Users/sudoupousei/000_work/temp';
+  
+  if (currentFolder) {
+    // 現在のフォルダパスを/区切りに正規化
+    folderPath = normalizePath(currentFolder);
+  }
+  
+  // URLを手動で構築（%2Fエンコーディングを避けるため）
+  const baseUrl = 'http://localhost:5001/fullpath';
+  const params = [
+    `path=${folderPath}`,
+    'filter=excalidraw,excalidraw.svg,excalidraw.png',
+    'hideFolders=true'
+  ];
+  const fileViewerUrl = `${baseUrl}?${params.join('&')}`;
+  
+  // ファイルビューアーにリダイレクト
+  window.location.href = normalizePath(fileViewerUrl);
+};
+
 export interface AppProps {
   appTitle: string;
   useCustom: (api: ExcalidrawImperativeAPI | null, customArgs?: any[]) => void;
@@ -78,6 +126,13 @@ export default function ExampleApp({
   const [currentFilePath, setCurrentFilePath] = useState<string | null>(null);
   const [lastSavedElements, setLastSavedElements] = useState<string>('');
   const [lastFileModified, setLastFileModified] = useState<number>(0);
+  
+  // 現在のフォルダパスを取得する関数
+  const getCurrentFolder = useCallback(() => {
+    if (!currentFilePath) return null;
+    const lastSlashIndex = currentFilePath.lastIndexOf('/');
+    return lastSlashIndex !== -1 ? currentFilePath.substring(0, lastSlashIndex) : null;
+  }, [currentFilePath]);
   
   // デバウンス処理用のstate（削除済み - Refを使用）
   
@@ -415,6 +470,30 @@ export default function ExampleApp({
 
   return (
     <div className="App" ref={appRef}>
+      {/* カスタムヘッダー */}
+      <div className="custom-header">
+        <div className="header-actions">
+          <button 
+            className="header-btn new-file-btn"
+            onClick={() => showNewFileDialog(getCurrentFolder())}
+            title="新規作成"
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <line x1="12" y1="5" x2="12" y2="19"></line>
+              <line x1="5" y1="12" x2="19" y2="12"></line>
+            </svg>
+          </button>
+          <button 
+            className="header-btn open-folder-btn"
+            onClick={() => showOpenFileDialog(getCurrentFolder())}
+            title="フォルダを表示"
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path>
+            </svg>
+          </button>
+        </div>
+      </div>
       <div className="excalidraw-wrapper" ref={containerRef}>
         {renderExcalidraw(children)}
       </div>
