@@ -11,11 +11,29 @@
     <meta http-equiv="Content-Language" content="ja" />
     <link rel="icon" href="/assets/favicon-D_c4FDF-.ico" type="image/x-icon">
 
-    <title>React App</title>
+    <title>excalidraw_myao9494</title>
     <script>
       window.name = "codesandbox";
       window.EXCALIDRAW_ASSET_PATH =
         "https://esm.sh/@excalidraw/excalidraw@0.18.0/dist/prod/";
+      
+      // URL パラメータから filepath を取得してタブタイトルを動的に設定
+      (function() {
+        const urlParams = new URLSearchParams(window.location.search);
+        const filepath = urlParams.get('filepath');
+        
+        if (filepath) {
+          // パスからフォルダ名を抽出
+          const pathParts = filepath.split('/');
+          // ファイル名を除いて、最後のフォルダ名を取得
+          for (let i = pathParts.length - 2; i >= 0; i--) {
+            if (pathParts[i] && pathParts[i].trim() !== '') {
+              document.title = pathParts[i];
+              break;
+            }
+          }
+        }
+      })();
     </script>
     <script type="module" crossorigin src="/assets/index-CnkylSXH.js"></script>
     <link rel="stylesheet" crossorigin href="/assets/index-ZV-UKppF.css">

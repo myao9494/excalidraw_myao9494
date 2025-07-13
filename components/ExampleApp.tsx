@@ -69,13 +69,8 @@ const normalizePath = (path: string): string => {
  * ファイル選択ダイアログを表示する（ファイルビューアーを使用）
  */
 const showOpenFileDialog = (currentFolder: string | null) => {
-  // デフォルトのフォルダパス
-  let folderPath = '/Users/sudoupousei/000_work/temp';
-  
-  if (currentFolder) {
-    // 現在のフォルダパスを/区切りに正規化
-    folderPath = normalizePath(currentFolder);
-  }
+  // 現在のフォルダまたはブラウザのカレントディレクトリを使用
+  let folderPath = currentFolder ? normalizePath(currentFolder) : '.';
   
   // URLを手動で構築（%2Fエンコーディングを避けるため）
   const baseUrl = 'http://localhost:5001/fullpath';
@@ -86,8 +81,38 @@ const showOpenFileDialog = (currentFolder: string | null) => {
   ];
   const fileViewerUrl = `${baseUrl}?${params.join('&')}`;
   
-  // ファイルビューアーにリダイレクト
-  window.location.href = normalizePath(fileViewerUrl);
+  // ファイルビューアーを新しいタブで開く
+  window.open(normalizePath(fileViewerUrl), '_blank');
+};
+
+/**
+ * codeでフォルダを開く
+ */
+const openInCode = async (currentFolder: string | null) => {
+  // 現在のフォルダまたはブラウザのカレントディレクトリを使用
+  let folderPath = currentFolder ? normalizePath(currentFolder) : '.';
+  
+  try {
+    const response = await fetch('http://localhost:5001/open-in-code2', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        path: folderPath
+      })
+    });
+    
+    const result = await response.json();
+    
+    if (result.success) {
+      console.log('codeで開きました:', folderPath);
+    } else {
+      console.error('codeで開くのに失敗しました:', result.error);
+    }
+  } catch (error) {
+    console.error('エラーが発生しました:', error);
+  }
 };
 
 export interface AppProps {
@@ -577,6 +602,16 @@ export default function ExampleApp({
           >
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
               <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path>
+            </svg>
+          </button>
+          <button 
+            className="header-btn open-code-btn"
+            onClick={() => openInCode(getCurrentFolder())}
+            title="codeで開く"
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <polyline points="16,18 22,12 16,6"></polyline>
+              <polyline points="8,6 2,12 8,18"></polyline>
             </svg>
           </button>
         </div>
