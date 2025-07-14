@@ -67,23 +67,42 @@ const normalizePath = (path: string): string => {
 };
 
 /**
+ * フルパスを/view/形式のパスに変換する
+ */
+const convertToViewPath = (fullPath: string): string => {
+  // プロジェクトのベースパス（excalidraw_myao9494）を特定
+  const projectName = 'excalidraw_myao9494';
+  const projectIndex = fullPath.indexOf(projectName);
+  
+  if (projectIndex !== -1) {
+    // excalidraw_myao9494以降のパスを取得
+    const relativePath = fullPath.substring(projectIndex);
+    return `/view/${relativePath}`;
+  }
+  
+  // フォールバック: フルパスをそのまま使用
+  return `/view/${fullPath}`;
+};
+
+/**
  * ファイル選択ダイアログを表示する（ファイルビューアーを使用）
  */
 const showOpenFileDialog = (currentFolder: string | null) => {
   // 現在のフォルダまたはブラウザのカレントディレクトリを使用
   let folderPath = currentFolder ? normalizePath(currentFolder) : '.';
   
-  // URLを手動で構築（%2Fエンコーディングを避けるため）
-  const baseUrl = 'http://localhost:5001/fullpath';
+  // フルパスを/view/形式に変換
+  const viewPath = convertToViewPath(folderPath);
+  
+  // URLを手動で構築
+  const baseUrl = 'http://localhost:5001';
   const params = [
-    `path=${folderPath}`,
-    'filter=excalidraw,excalidraw.svg,excalidraw.png',
-    'hideFolders=true'
+    'filter=md,svg,csv,pdf,ipynb,py,docx,xlsx,xlsm,pptx,msg,lnk,excalidraw,excalidraw.svg,excalidraw.png'
   ];
-  const fileViewerUrl = `${baseUrl}?${params.join('&')}`;
+  const fileViewerUrl = `${baseUrl}${viewPath}?${params.join('&')}`;
   
   // ファイルビューアーを新しいタブで開く
-  window.open(normalizePath(fileViewerUrl), '_blank');
+  window.open(fileViewerUrl, '_blank');
 };
 
 /**
