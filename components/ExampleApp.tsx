@@ -616,6 +616,7 @@ export default function ExampleApp({
       {
         excalidrawAPI: (api: ExcalidrawImperativeAPI) => setExcalidrawAPI(api),
         initialData: initialStatePromiseRef.current.promise,
+        langCode: 'ja-JP',
         onChange: (
           elements: NonDeletedExcalidrawElement[],
           state: AppState,
