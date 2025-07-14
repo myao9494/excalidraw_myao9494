@@ -20,6 +20,7 @@ export interface KeyboardShortcutsOptions {
  * - C: 矢印なしの直線描画
  * - N: 基本付箋作成
  * - W: クリップボードからリンク付箋作成
+ * - Tab: 選択されたオブジェクトの形状を順番に変更（四角形 → ひし形 → 円 → ...）
  * - Cmd/Ctrl + M: 選択要素を最前面に移動
  * - Cmd/Ctrl + B: 選択要素を最背面に移動
  * 
@@ -74,6 +75,10 @@ export const useKeyboardShortcuts = ({ excalidrawAPI, viewportCoordsToSceneCoord
         case 'w':
           event.preventDefault();
           handleCreateClipboardStickyNote();
+          break;
+        case 'tab':
+          event.preventDefault();
+          handleShapeTransform();
           break;
       }
     };
@@ -202,6 +207,57 @@ export const useKeyboardShortcuts = ({ excalidrawAPI, viewportCoordsToSceneCoord
         });
       } catch (error) {
         console.error('クリップボード付箋の作成に失敗しました:', error);
+      }
+    };
+
+    /**
+     * Tabキー: 選択されたオブジェクトの形状変更機能
+     * 
+     * 選択されたオブジェクトの形状を順番に変更する。
+     * 変更順序: 四角形 → ひし形 → 円 → 四角形（ループ）
+     * 選択されたオブジェクトがない場合は何もしない。
+     */
+    const handleShapeTransform = () => {
+      try {
+        const allElements = excalidrawAPI.getSceneElements();
+        const selectedElementIds = excalidrawAPI.getAppState().selectedElementIds;
+        
+        // 選択された要素を取得
+        const selectedElements = allElements.filter(element => 
+          selectedElementIds[element.id]
+        );
+
+        if (selectedElements.length === 0) return;
+
+        // 形状変更可能な要素のタイプ定義
+        const shapeTypes = ['rectangle', 'diamond', 'ellipse'];
+        
+        // 更新された要素を格納する配列
+        const updatedElements = allElements.map(element => {
+          // 選択されている要素で、かつ形状変更可能な場合のみ処理
+          if (selectedElementIds[element.id] && shapeTypes.includes(element.type)) {
+            const currentIndex = shapeTypes.indexOf(element.type);
+            const nextIndex = (currentIndex + 1) % shapeTypes.length;
+            const nextType = shapeTypes[nextIndex];
+            
+            return {
+              ...element,
+              type: nextType as any
+            };
+          }
+          return element;
+        });
+
+        // シーンを更新
+        excalidrawAPI.updateScene({
+          elements: updatedElements,
+          appState: {
+            ...excalidrawAPI.getAppState(),
+            selectedElementIds: selectedElementIds
+          }
+        });
+      } catch (error) {
+        console.error('形状変更に失敗しました:', error);
       }
     };
 

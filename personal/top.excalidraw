@@ -1358,8 +1358,8 @@
     {
       "id": "P_LvnEaEvOqIYb7rIr-rn",
       "type": "rectangle",
-      "x": 1781.03442056749,
-      "y": 709.4246865226695,
+      "x": 1753.699331481543,
+      "y": 689.7874351478437,
       "width": 421.60116706811584,
       "height": 290,
       "angle": 0,
@@ -1374,8 +1374,8 @@
         "dBaCxVioyB4gttcPiLU2O"
       ],
       "seed": 628835,
-      "version": 357,
-      "versionNonce": 1001705320,
+      "version": 376,
+      "versionNonce": 343177240,
       "isDeleted": false,
       "boundElements": [
         {
@@ -1383,7 +1383,7 @@
           "id": "TLSYRpe9cQz6GZh8xhNxF"
         }
       ],
-      "updated": 1752451724406,
+      "updated": 1752451837674,
       "link": null,
       "locked": false,
       "frameId": null,
@@ -1394,8 +1394,8 @@
     {
       "id": "TLSYRpe9cQz6GZh8xhNxF",
       "type": "text",
-      "x": 1786.03442056749,
-      "y": 714.4246865226695,
+      "x": 1758.699331481543,
+      "y": 694.7874351478437,
       "width": 408.27166748046875,
       "height": 280,
       "angle": 0,
@@ -1410,8 +1410,8 @@
         "dBaCxVioyB4gttcPiLU2O"
       ],
       "seed": 488643,
-      "version": 580,
-      "versionNonce": 372679272,
+      "version": 599,
+      "versionNonce": 73250072,
       "isDeleted": false,
       "text": "ブラウザのタブの文字は以下としてください\n\n今のexcalidrawのファイルに対して、親フォルダと、そ\nの親のフォルダをつなげて表示したいです。\n\n/Users/sudoupousei/000_work/excalidraw_myao949\n4/personal/top.excalidraw\n\nの場合、\n\nexcalidraw_myao9494-personal-top.excalidraw\n\nとしてほしいのです。\nファイルから見て、2つ上までのを\"-\"で繋ぎます",
       "fontSize": 16,
@@ -1423,7 +1423,7 @@
       "originalText": "ブラウザのタブの文字は以下としてください\n\n今のexcalidrawのファイルに対して、親フォルダと、その親のフォルダをつなげて表示したいです。\n\n/Users/sudoupousei/000_work/excalidraw_myao9494/personal/top.excalidraw\n\nの場合、\n\nexcalidraw_myao9494-personal-top.excalidraw\n\nとしてほしいのです。\nファイルから見て、2つ上までのを\"-\"で繋ぎます",
       "lineHeight": 1.25,
       "boundElements": [],
-      "updated": 1752451724406,
+      "updated": 1752451837674,
       "link": null,
       "locked": false,
       "frameId": null,
@@ -1435,8 +1435,8 @@
     {
       "id": "pd0A_D6qx-ANegrfqGalr",
       "type": "rectangle",
-      "x": 1877.666051799109,
-      "y": 970.3225093332778,
+      "x": 1850.3309627131619,
+      "y": 950.685257958452,
       "width": 323.7727494235076,
       "height": 110,
       "angle": 0,
@@ -1451,8 +1451,8 @@
         "dBaCxVioyB4gttcPiLU2O"
       ],
       "seed": 525458,
-      "version": 176,
-      "versionNonce": 117839208,
+      "version": 195,
+      "versionNonce": 2115457560,
       "isDeleted": false,
       "boundElements": [
         {
@@ -1460,7 +1460,7 @@
           "id": "TmDiV0CNij3FEIXsw_MD8"
         }
       ],
-      "updated": 1752451724406,
+      "updated": 1752451837674,
       "link": null,
       "locked": false,
       "frameId": null,
@@ -1471,8 +1471,8 @@
     {
       "id": "TmDiV0CNij3FEIXsw_MD8",
       "type": "text",
-      "x": 1882.666051799109,
-      "y": 975.3225093332778,
+      "x": 1855.3309627131619,
+      "y": 955.685257958452,
       "width": 304,
       "height": 100,
       "angle": 0,
@@ -1487,8 +1487,8 @@
         "dBaCxVioyB4gttcPiLU2O"
       ],
       "seed": 635087,
-      "version": 350,
-      "versionNonce": 862922856,
+      "version": 369,
+      "versionNonce": 680873752,
       "isDeleted": false,
       "text": "拡張子はなくしましょう。また、順番を逆\nにしたくなりました。例は、以下のように\nなります\n\ntop-personal-excalidraw_myao9494",
       "fontSize": 16,
@@ -1500,7 +1500,7 @@
       "originalText": "拡張子はなくしましょう。また、順番を逆にしたくなりました。例は、以下のようになります\n\ntop-personal-excalidraw_myao9494",
       "lineHeight": 1.25,
       "boundElements": [],
-      "updated": 1752451724406,
+      "updated": 1752451837674,
       "link": null,
       "locked": false,
       "frameId": null,
@@ -1510,12 +1510,12 @@
       "autoResize": true
     },
     {
-      "id": "nU_S5Tp5MWDuoj1CeZw-V",
-      "type": "text",
-      "x": 492.34208336283314,
-      "y": 377.6312656020566,
-      "width": 6.399993896484375,
-      "height": 20,
+      "id": "9c3tI4JhbuNGFvmKMzsly",
+      "type": "ellipse",
+      "x": 864.7403160964907,
+      "y": 1266.9367872130454,
+      "width": 88.7817361899306,
+      "height": 56.68117188047563,
       "angle": 0,
       "strokeColor": "#e03131",
       "backgroundColor": "#ffc9c9",
@@ -1526,25 +1526,18 @@
       "opacity": 100,
       "groupIds": [],
       "frameId": null,
-      "index": "ay",
-      "roundness": null,
-      "seed": 470689304,
-      "version": 3,
-      "versionNonce": 554446184,
-      "isDeleted": true,
+      "index": "az",
+      "roundness": {
+        "type": 3
+      },
+      "seed": 746567554,
+      "version": 8,
+      "versionNonce": 1162798722,
+      "isDeleted": false,
       "boundElements": null,
-      "updated": 1752451728115,
+      "updated": 1752452034245,
       "link": null,
-      "locked": false,
-      "text": "",
-      "fontSize": 16,
-      "fontFamily": 5,
-      "textAlign": "left",
-      "verticalAlign": "top",
-      "containerId": null,
-      "originalText": "",
-      "autoResize": true,
-      "lineHeight": 1.25
+      "locked": false
     }
   ],
   "appState": {
@@ -1559,10 +1552,10 @@
     "currentItemRoughness": 1,
     "currentItemOpacity": 100,
     "zoom": {
-      "value": 0.747209
+      "value": 0.513656
     },
-    "scrollX": 492.22294536646405,
-    "scrollY": 220.84808854163555
+    "scrollX": 351.1233057267723,
+    "scrollY": 100.47346206644562
   },
   "files": {}
 }
