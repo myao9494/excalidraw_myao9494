@@ -37,6 +37,7 @@ import {
   handleStickyNoteLink,
   type ExcalidrawFileData
 } from "../utils/fileUtils";
+import { generateTabTitle } from "../utils/titleUtils";
 
 import "./ExampleApp.scss";
 
@@ -207,6 +208,12 @@ export default function ExampleApp({
     
     setCurrentFilePath(filePath);
   }, []);
+
+  // タブタイトルを設定するuseEffect
+  useEffect(() => {
+    const tabTitle = generateTabTitle(currentFilePath);
+    document.title = tabTitle;
+  }, [currentFilePath]);
 
   useEffect(() => {
     if (!excalidrawAPI) {
