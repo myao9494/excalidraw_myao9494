@@ -66,23 +66,6 @@ const normalizePath = (path: string): string => {
   return path.replace(/\\/g, '/');
 };
 
-/**
- * フルパスを/view/形式のパスに変換する
- */
-const convertToViewPath = (fullPath: string): string => {
-  // プロジェクトのベースパス（excalidraw_myao9494）を特定
-  const projectName = 'excalidraw_myao9494';
-  const projectIndex = fullPath.indexOf(projectName);
-  
-  if (projectIndex !== -1) {
-    // excalidraw_myao9494以降のパスを取得
-    const relativePath = fullPath.substring(projectIndex);
-    return `/view/${relativePath}`;
-  }
-  
-  // フォールバック: フルパスをそのまま使用
-  return `/view/${fullPath}`;
-};
 
 /**
  * ファイル選択ダイアログを表示する（ファイルビューアーを使用）
@@ -91,15 +74,11 @@ const showOpenFileDialog = (currentFolder: string | null) => {
   // 現在のフォルダまたはブラウザのカレントディレクトリを使用
   let folderPath = currentFolder ? normalizePath(currentFolder) : '.';
   
-  // フルパスを/view/形式に変換
-  const viewPath = convertToViewPath(folderPath);
-  
   // URLを手動で構築
   const baseUrl = 'http://localhost:5001';
-  const params = [
-    'filter=md,svg,csv,pdf,ipynb,py,docx,xlsx,xlsm,pptx,msg,lnk,excalidraw,excalidraw.svg,excalidraw.png'
-  ];
-  const fileViewerUrl = `${baseUrl}${viewPath}?${params.join('&')}`;
+  const encodedPath = encodeURIComponent(folderPath);
+  const filterParam = 'filter=md,svg,csv,pdf,ipynb,py,docx,xlsx,xlsm,pptx,msg,lnk,excalidraw,excalidraw.svg,excalidraw.png';
+  const fileViewerUrl = `${baseUrl}/fullpath?path=${encodedPath}&${filterParam}`;
   
   // ファイルビューアーを新しいタブで開く
   window.open(fileViewerUrl, '_blank');
@@ -217,10 +196,12 @@ export default function ExampleApp({
     
     // URLパラメータでファイルパスが指定されている場合の処理
     if (filePath) {
-      // Excalidrawファイル以外の場合はfile viewerにリダイレクト
+      // Excalidrawファイル以外の場合はfile viewerを新しいタブで開く
       if (!filePath.toLowerCase().endsWith('.excalidraw')) {
         const fileViewerUrl = `http://localhost:5001/fullpath?path=${filePath}`;
-        window.location.href = fileViewerUrl;
+        window.open(fileViewerUrl, '_blank');
+        // URLパラメータをクリアして元の状態に戻す
+        window.history.replaceState({}, document.title, window.location.pathname);
         return;
       }
     }
@@ -376,6 +357,20 @@ export default function ExampleApp({
     const currentFilePathValue = currentFilePathRef.current;
     if (!currentFilePathValue) return true; // ローカルストレージの場合は常に保存
 
+    // 削除操作の特別な検知：要素数の変化を最優先でチェック
+    let lastSavedData;
+    try {
+      lastSavedData = JSON.parse(lastSavedElementsRef.current);
+    } catch {
+      return true; // パース失敗時は保存を実行
+    }
+
+    // 要素数が変化した場合（削除や追加）は即座に変更と判定
+    if (lastSavedData.count !== elements.length) {
+      console.log(`[Change Detection] Element count changed: ${lastSavedData.count} → ${elements.length}`);
+      return true;
+    }
+
     // 包括的な変更検知：すべての重要なプロパティを含む
     const currentSummary = {
       count: elements.length,
@@ -400,6 +395,10 @@ export default function ExampleApp({
     const currentSummaryString = JSON.stringify(currentSummary);
     const hasChanged = currentSummaryString !== lastSavedElementsRef.current;
     
+    if (hasChanged) {
+      console.log(`[Change Detection] Detailed change detected`);
+    }
+    
     return hasChanged;
   }, []);
 
@@ -412,6 +411,20 @@ export default function ExampleApp({
     // 重要な変更かどうかをチェック
     if (!isSignificantChange(elements)) {
       return; // 重要でない変更はスキップ
+    }
+
+    // 削除操作の場合は即座に保存（デバウンスをスキップ）
+    let lastSavedData;
+    try {
+      lastSavedData = JSON.parse(lastSavedElementsRef.current);
+      // 要素数が減った場合（削除操作）は即座に保存
+      if (lastSavedData.count > elements.length) {
+        console.log(`[Immediate Save] Deletion detected: ${lastSavedData.count} → ${elements.length}`);
+        performSave(elements, appState, files);
+        return;
+      }
+    } catch {
+      // パース失敗時は通常のデバウンス処理を実行
     }
 
     // 既存のタイマーをクリア
@@ -673,8 +686,13 @@ export default function ExampleApp({
             </svg>
           </button>
           <button 
+            type="button"
             className="header-btn open-folder-btn"
-            onClick={() => showOpenFileDialog(getCurrentFolder())}
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              showOpenFileDialog(getCurrentFolder());
+            }}
             title="フォルダを表示"
           >
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
