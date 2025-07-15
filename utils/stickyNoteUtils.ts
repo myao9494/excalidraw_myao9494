@@ -47,7 +47,7 @@ export const STICKY_NOTE_COLORS: StickyNoteColors = {
  */
 export const DEFAULT_STICKY_NOTE_SIZE = {
   width: 300,   // 幅
-  height: 200    // 高さ
+  height: 100    // 高さ（半分に縮小）
 };
 
 /**
