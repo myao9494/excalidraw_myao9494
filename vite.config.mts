@@ -1,3 +1,8 @@
+/**
+ * Vite設定ファイル
+ * Excalidrawの手書き風フォントをオフラインで使用するため、
+ * フォントファイルを静的アセットとしてビルドに含める設定を追加
+ */
 import { defineConfig } from "vite";
 
 // https://vitejs.dev/config/
@@ -17,4 +22,23 @@ export default defineConfig({
       treeShaking: true,
     },
   },
+  build: {
+    rollupOptions: {
+      output: {
+        // アセットファイルの命名規則を維持
+        assetFileNames: (assetInfo) => {
+          if (assetInfo.name && assetInfo.name.endsWith('.woff2')) {
+            return 'fonts/[name][extname]';
+          }
+          return 'assets/[name]-[hash][extname]';
+        }
+      }
+    },
+    // 大きなアセットファイルの警告を抑制
+    chunkSizeWarningLimit: 3000
+  },
+  // フォントファイルをアセットとして認識させる
+  assetsInclude: ['**/*.woff2', '**/*.woff', '**/*.ttf'],
+  // root を明示的に設定
+  root: "."
 });
