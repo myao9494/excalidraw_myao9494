@@ -103,6 +103,10 @@ class SaveLibraryResponse(BaseModel):
     message: Optional[str] = None
     error: Optional[str] = None
 
+class SaveSvgRequest(BaseModel):
+    filepath: str
+    svg_content: str
+
 def create_backup(filepath: str) -> bool:
     """バックアップを作成する関数"""
     try:
@@ -432,6 +436,25 @@ async def save_library(request: SaveLibraryRequest):
             success=False,
             error=f"Error saving library: {str(e)}"
         )
+
+@app.post("/api/save-svg")
+async def save_svg(request: SaveSvgRequest):
+    """SVGファイルを保存するエンドポイント"""
+    try:
+        file_path = Path(request.filepath)
+        
+        # ディレクトリが存在しない場合は作成
+        file_path.parent.mkdir(parents=True, exist_ok=True)
+        
+        # SVGファイルに保存
+        with open(file_path, 'w', encoding='utf-8') as f:
+            f.write(request.svg_content)
+        
+        return {"success": True, "message": f"SVG file saved to {request.filepath}"}
+    
+    except Exception as e:
+        print(f"Error saving SVG file: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Error saving SVG file: {str(e)}")
 
 # 静的ファイル配信の設定
 @app.get("/api/file/{file_path:path}")

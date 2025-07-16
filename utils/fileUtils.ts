@@ -1,5 +1,6 @@
 import type { NonDeletedExcalidrawElement } from "@excalidraw/excalidraw/element/types";
 import type { AppState } from "@excalidraw/excalidraw/types";
+import { exportToSvg } from "@excalidraw/excalidraw";
 
 
 export interface ExcalidrawFileData {
@@ -215,5 +216,104 @@ export const handleStickyNoteLink = (linkUrl: string): void => {
     console.error('Error handling sticky note link:', error);
     // エラーの場合は元のリンクをそのまま開く
     window.open(linkUrl, '_blank');
+  }
+};
+
+/**
+ * SVGファイルとして保存する関数
+ * @param elements 選択された要素または全要素
+ * @param appState アプリケーションの状態
+ * @param files ファイルデータ
+ * @param currentFolder 現在のフォルダパス
+ * @param selectedElements 選択された要素（nullの場合は全要素）
+ */
+export const exportToSvgFile = async (
+  elements: NonDeletedExcalidrawElement[],
+  appState: AppState,
+  files: any,
+  currentFolder: string | null,
+  selectedElements: NonDeletedExcalidrawElement[] | null = null
+): Promise<boolean> => {
+  try {
+    // ファイル名を入力させる
+    const fileName = prompt('SVGファイル名を入力してください（拡張子なし）:');
+    if (!fileName || !fileName.trim()) {
+      return false;
+    }
+
+    // 選択された要素がある場合はそれを使用、なければ全要素を使用
+    let elementsToExport = selectedElements && selectedElements.length > 0 ? selectedElements : elements;
+    
+    // 付箋のテキストが含まれるように、containerIdを持つテキスト要素も含める
+    if (selectedElements && selectedElements.length > 0) {
+      const selectedIds = new Set(selectedElements.map(el => el.id));
+      const relatedTextElements = elements.filter(element => 
+        element.type === 'text' && 
+        element.containerId && 
+        selectedIds.has(element.containerId)
+      );
+      
+      // 関連するテキスト要素を追加
+      elementsToExport = [...selectedElements, ...relatedTextElements.filter(textEl => 
+        !selectedIds.has(textEl.id)
+      )];
+      
+      console.log('Added related text elements:', relatedTextElements.length);
+    }
+
+    // SVGを生成（改善版）
+    const svg = await exportToSvg({
+      elements: elementsToExport,
+      appState: {
+        ...appState,
+        exportBackground: true,
+        exportWithDarkMode: false,
+        exportEmbedScene: false,
+        // フォント関連の設定を保持
+        currentItemFontFamily: appState.currentItemFontFamily || 1, // デフォルトフォント
+        currentItemFontSize: appState.currentItemFontSize || 20,
+        // テキストの可視性を確保
+        currentItemStrokeColor: appState.currentItemStrokeColor || '#000000',
+        currentItemOpacity: appState.currentItemOpacity || 100,
+      },
+      files,
+      exportPadding: 10,
+      metadata: "" // 必要に応じてメタデータを追加
+    });
+
+    // SVGをテキストとして取得
+    const svgString = new XMLSerializer().serializeToString(svg);
+    
+    // デバッグ用：SVG内容を確認
+    console.log('Generated SVG contains font data:', svgString.includes('@font-face'));
+    console.log('Text elements count:', elementsToExport.filter(e => e.type === 'text').length);
+    console.log('Elements to export:', elementsToExport.length);
+
+    // ファイルパスを構築
+    const normalizedFolder = currentFolder ? currentFolder.replace(/\\/g, '/') : '.';
+    const filePath = `${normalizedFolder}/${fileName.trim()}.svg`;
+
+    // バックエンドに保存
+    const response = await fetch(`${API_BASE_URL}/api/save-svg`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        filepath: filePath,
+        svg_content: svgString
+      })
+    });
+
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+
+    const result = await response.json();
+    console.log('SVG file saved successfully:', result.message);
+    return true;
+  } catch (error) {
+    console.error('Error saving SVG file:', error);
+    return false;
   }
 };

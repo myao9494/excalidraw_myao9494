@@ -35,6 +35,7 @@ import {
   saveExcalidrawFile,
   getFileInfo,
   handleStickyNoteLink,
+  exportToSvgFile,
   type ExcalidrawFileData
 } from "../utils/fileUtils";
 import { generateTabTitle } from "../utils/titleUtils";
@@ -114,6 +115,7 @@ const openInCode = async (currentFolder: string | null) => {
   }
 };
 
+
 export interface AppProps {
   appTitle: string;
   useCustom: (api: ExcalidrawImperativeAPI | null, customArgs?: any[]) => void;
@@ -157,6 +159,39 @@ export default function ExampleApp({
     const lastSlashIndex = currentFilePath.lastIndexOf('/');
     return lastSlashIndex !== -1 ? currentFilePath.substring(0, lastSlashIndex) : null;
   }, [currentFilePath]);
+  
+  // SVGファイルとして保存する関数
+  const exportSvg = useCallback(async (currentFolder: string | null) => {
+    if (!excalidrawAPI) {
+      console.error('Excalidraw APIが利用できません');
+      return;
+    }
+
+    try {
+      const elements = excalidrawAPI.getSceneElements();
+      const appState = excalidrawAPI.getAppState();
+      const files = excalidrawAPI.getFiles();
+      
+      // 選択された要素を取得
+      const selectedElements = elements.filter(element => appState.selectedElementIds[element.id]);
+      
+      const success = await exportToSvgFile(
+        elements,
+        appState,
+        files,
+        currentFolder,
+        selectedElements.length > 0 ? selectedElements : null
+      );
+      
+      if (success) {
+        console.log('SVGファイルの保存に成功しました');
+      } else {
+        console.error('SVGファイルの保存に失敗しました');
+      }
+    } catch (error) {
+      console.error('SVGエクスポート中にエラーが発生しました:', error);
+    }
+  }, [excalidrawAPI]);
   
   // デバウンス処理用のstate（削除済み - Refを使用）
   
@@ -803,6 +838,17 @@ export default function ExampleApp({
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
               <polyline points="16,18 22,12 16,6"></polyline>
               <polyline points="8,6 2,12 8,18"></polyline>
+            </svg>
+          </button>
+          <button 
+            className="header-btn export-svg-btn"
+            onClick={() => exportSvg(getCurrentFolder())}
+            title="SVGで保存"
+          >
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1">
+              <polyline points="7,18 12,23 17,18"></polyline>
+              <line x1="12" y1="23" x2="12" y2="12"></line>
+              <text x="12" y="9" textAnchor="middle" fontSize="15" fill="currentColor">svg</text>
             </svg>
           </button>
         </div>
