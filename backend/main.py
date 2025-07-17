@@ -108,7 +108,10 @@ class SaveSvgRequest(BaseModel):
     svg_content: str
 
 def create_backup(filepath: str) -> bool:
-    """バックアップを作成する関数"""
+    """
+    バックアップを作成する関数
+    10個を超えた場合、最も古いバックアップを削除して新しいバックアップを保存
+    """
     try:
         file_path = Path(filepath)
         
@@ -129,12 +132,14 @@ def create_backup(filepath: str) -> bool:
         latest_backup_time = 0
         
         # 既存のバックアップファイルから最新のものを見つける
+        existing_backups = []
         for i in range(10):
             backup_name = f"{base_name}_backup_{i:02d}{extension}"
             backup_path = backup_dir / backup_name
             
             if backup_path.exists():
                 backup_time = backup_path.stat().st_mtime
+                existing_backups.append((backup_path, backup_time))
                 if backup_time > latest_backup_time:
                     latest_backup_time = backup_time
         
@@ -144,23 +149,20 @@ def create_backup(filepath: str) -> bool:
             return True
         
         # バックアップファイルのローテーション
-        # 既存のバックアップファイルを確認して次のインデックスを決定
-        oldest_backup = None
-        oldest_time = float('inf')
-        next_index = 0
+        if len(existing_backups) >= 10:
+            # 10個以上の場合、最も古いものを削除
+            existing_backups.sort(key=lambda x: x[1])  # 時刻でソート
+            oldest_backup_path = existing_backups[0][0]
+            oldest_backup_path.unlink()  # 古いバックアップを削除
+            print(f"Deleted oldest backup: {oldest_backup_path}")
         
+        # 新しいバックアップファイルの名前を決定
+        # 削除されたスロットまたは空いているスロットを使用
+        next_index = 0
         for i in range(10):
             backup_name = f"{base_name}_backup_{i:02d}{extension}"
             backup_path = backup_dir / backup_name
-            
-            if backup_path.exists():
-                backup_time = backup_path.stat().st_mtime
-                if backup_time < oldest_time:
-                    oldest_time = backup_time
-                    oldest_backup = backup_path
-                    next_index = i
-            else:
-                # 空いているスロットがあればそれを使用
+            if not backup_path.exists():
                 next_index = i
                 break
         
