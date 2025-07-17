@@ -6,8 +6,8 @@
     {
       "id": "vSR8zd6TARckVor-iASO1",
       "type": "rectangle",
-      "x": 1364.2290118603166,
-      "y": 189.69662145092218,
+      "x": 2230.330199061461,
+      "y": 161.35095955392592,
       "width": 200,
       "height": 50,
       "angle": 0,
@@ -20,8 +20,8 @@
       "opacity": 100,
       "groupIds": [],
       "seed": 534232,
-      "version": 112,
-      "versionNonce": 620561575,
+      "version": 166,
+      "versionNonce": 428322359,
       "isDeleted": false,
       "boundElements": [
         {
@@ -29,7 +29,7 @@
           "id": "hUoR_-J6ZuW_pSEu0S-Ib"
         }
       ],
-      "updated": 1752376986047,
+      "updated": 1752747143255,
       "link": null,
       "locked": false,
       "frameId": null,
@@ -40,8 +40,8 @@
     {
       "id": "hUoR_-J6ZuW_pSEu0S-Ib",
       "type": "text",
-      "x": 1369.2290118603166,
-      "y": 194.69662145092218,
+      "x": 2235.330199061461,
+      "y": 166.35095955392592,
       "width": 128,
       "height": 35.2,
       "angle": 0,
@@ -54,8 +54,8 @@
       "opacity": 100,
       "groupIds": [],
       "seed": 520718,
-      "version": 163,
-      "versionNonce": 543414215,
+      "version": 217,
+      "versionNonce": 2130890583,
       "isDeleted": false,
       "text": "ライブラリの実装\n",
       "fontSize": 16,
@@ -67,7 +67,7 @@
       "originalText": "ライブラリの実装\n",
       "lineHeight": 1.1,
       "boundElements": [],
-      "updated": 1752376986047,
+      "updated": 1752747143255,
       "link": null,
       "locked": false,
       "frameId": null,
@@ -411,8 +411,8 @@
     {
       "id": "K2B1C1wEUKuDs_y1zhRN3",
       "type": "rectangle",
-      "x": 1364.688969479851,
-      "y": 250.37670414504004,
+      "x": 2230.790156680995,
+      "y": 222.03104224804378,
       "width": 200,
       "height": 50,
       "angle": 0,
@@ -425,8 +425,8 @@
       "opacity": 100,
       "groupIds": [],
       "seed": 641741,
-      "version": 42,
-      "versionNonce": 754837394,
+      "version": 96,
+      "versionNonce": 113036407,
       "isDeleted": false,
       "boundElements": [
         {
@@ -434,7 +434,7 @@
           "id": "RRSv9GNnZsQy0a_6NRdB6"
         }
       ],
-      "updated": 1752377144580,
+      "updated": 1752747143255,
       "link": null,
       "locked": false,
       "frameId": null,
@@ -445,8 +445,8 @@
     {
       "id": "RRSv9GNnZsQy0a_6NRdB6",
       "type": "text",
-      "x": 1369.688969479851,
-      "y": 255.37670414504004,
+      "x": 2235.790156680995,
+      "y": 227.03104224804378,
       "width": 180,
       "height": 17.6,
       "angle": 0,
@@ -459,8 +459,8 @@
       "opacity": 100,
       "groupIds": [],
       "seed": 365797,
-      "version": 126,
-      "versionNonce": 2009015634,
+      "version": 180,
+      "versionNonce": 1014637975,
       "isDeleted": false,
       "text": "終了時に保存処理を追加",
       "fontSize": 16,
@@ -472,7 +472,7 @@
       "originalText": "終了時に保存処理を追加",
       "lineHeight": 1.1,
       "boundElements": [],
-      "updated": 1752377144580,
+      "updated": 1752747143255,
       "link": null,
       "locked": false,
       "frameId": null,
@@ -484,8 +484,8 @@
     {
       "id": "XEb9qehGqIGdT8VtYHgCe",
       "type": "rectangle",
-      "x": 1374.86621669345,
-      "y": 342.8389317267408,
+      "x": 2240.967403894594,
+      "y": 314.4932698297445,
       "width": 200,
       "height": 63,
       "angle": 0,
@@ -498,8 +498,8 @@
       "opacity": 100,
       "groupIds": [],
       "seed": 628467,
-      "version": 88,
-      "versionNonce": 1174090870,
+      "version": 142,
+      "versionNonce": 1064262327,
       "isDeleted": false,
       "boundElements": [
         {
@@ -507,7 +507,7 @@
           "id": "IE1R6nQnHeeqcyn5oPUgb"
         }
       ],
-      "updated": 1752379285956,
+      "updated": 1752747143255,
       "link": null,
       "locked": false,
       "frameId": null,
@@ -518,8 +518,8 @@
     {
       "id": "IE1R6nQnHeeqcyn5oPUgb",
       "type": "text",
-      "x": 1379.86621669345,
-      "y": 347.8389317267408,
+      "x": 2245.967403894594,
+      "y": 319.4932698297445,
       "width": 180,
       "height": 52.800000000000004,
       "angle": 0,
@@ -532,8 +532,8 @@
       "opacity": 100,
       "groupIds": [],
       "seed": 84666,
-      "version": 253,
-      "versionNonce": 1288254902,
+      "version": 307,
+      "versionNonce": 1413540823,
       "isDeleted": false,
       "text": "フォルダを表示 ボタンを\n押したとき、新しいタブ\nで開くようにしたい",
       "fontSize": 16,
@@ -545,7 +545,7 @@
       "originalText": "フォルダを表示 ボタンを押したとき、新しいタブで開くようにしたい",
       "lineHeight": 1.1,
       "boundElements": [],
-      "updated": 1752379285956,
+      "updated": 1752747143255,
       "link": null,
       "locked": false,
       "frameId": null,
@@ -557,8 +557,8 @@
     {
       "id": "FMUmc0_DSWPhwR226Ru5_",
       "type": "rectangle",
-      "x": 1374.9741314193811,
-      "y": 415.3005819764593,
+      "x": 2241.0753186205256,
+      "y": 386.954920079463,
       "width": 291.0951200489389,
       "height": 222,
       "angle": 0,
@@ -571,8 +571,8 @@
       "opacity": 100,
       "groupIds": [],
       "seed": 335783,
-      "version": 269,
-      "versionNonce": 1690636022,
+      "version": 323,
+      "versionNonce": 922966263,
       "isDeleted": false,
       "boundElements": [
         {
@@ -580,7 +580,7 @@
           "id": "UJiNrmfxdz78ycv6I3ip0"
         }
       ],
-      "updated": 1752379285956,
+      "updated": 1752747143255,
       "link": null,
       "locked": false,
       "frameId": null,
@@ -591,8 +591,8 @@
     {
       "id": "UJiNrmfxdz78ycv6I3ip0",
       "type": "text",
-      "x": 1379.9741314193811,
-      "y": 420.3005819764593,
+      "x": 2246.0753186205256,
+      "y": 391.954920079463,
       "width": 271.80780029296875,
       "height": 211.20000000000002,
       "angle": 0,
@@ -605,8 +605,8 @@
       "opacity": 100,
       "groupIds": [],
       "seed": 486376,
-      "version": 339,
-      "versionNonce": 1517535286,
+      "version": 393,
+      "versionNonce": 758850071,
       "isDeleted": false,
       "text": "codeで開くボタンを追加してほしい\n\nflaskアプリ\nhttp://localhost:5001/\n\nソースは、\n/Users/sudoupousei/000_work/file\n_viewer/app.py \n\nエンドポイントは、open_in_code\n\nこれを使ってください。",
       "fontSize": 16,
@@ -618,7 +618,7 @@
       "originalText": "codeで開くボタンを追加してほしい\n\nflaskアプリ\nhttp://localhost:5001/\n\nソースは、\n/Users/sudoupousei/000_work/file_viewer/app.py \n\nエンドポイントは、open_in_code\n\nこれを使ってください。",
       "lineHeight": 1.1,
       "boundElements": [],
-      "updated": 1752379285956,
+      "updated": 1752747143255,
       "link": null,
       "locked": false,
       "frameId": null,
@@ -630,8 +630,8 @@
     {
       "id": "hWG8cH-5tLp_nfbGsGq-W",
       "type": "rectangle",
-      "x": 1385.4535985635125,
-      "y": 782.1070541089916,
+      "x": 2251.554785764657,
+      "y": 753.7613922119954,
       "width": 295.18939398574616,
       "height": 84.98748988687908,
       "angle": 0,
@@ -644,8 +644,8 @@
       "opacity": 100,
       "groupIds": [],
       "seed": 887765,
-      "version": 85,
-      "versionNonce": 189056651,
+      "version": 139,
+      "versionNonce": 1474086711,
       "isDeleted": false,
       "boundElements": [
         {
@@ -653,7 +653,7 @@
           "id": "Ge9eMhTDjvo4wRq1AGsjX"
         }
       ],
-      "updated": 1752478829995,
+      "updated": 1752747143255,
       "link": null,
       "locked": false,
       "frameId": null,
@@ -664,8 +664,8 @@
     {
       "id": "Ge9eMhTDjvo4wRq1AGsjX",
       "type": "text",
-      "x": 1390.4535985635125,
-      "y": 787.1070541089916,
+      "x": 2256.554785764657,
+      "y": 758.7613922119954,
       "width": 279.20001220703125,
       "height": 44,
       "angle": 0,
@@ -678,8 +678,8 @@
       "opacity": 100,
       "groupIds": [],
       "seed": 845807,
-      "version": 171,
-      "versionNonce": 2074197291,
+      "version": 225,
+      "versionNonce": 1162659927,
       "isDeleted": false,
       "text": "付箋の大きさや、フォントサイ\nズなどを変更",
       "fontSize": 20,
@@ -691,7 +691,7 @@
       "originalText": "付箋の大きさや、フォントサイズなどを変更",
       "lineHeight": 1.1,
       "boundElements": [],
-      "updated": 1752478829995,
+      "updated": 1752747143255,
       "link": null,
       "locked": false,
       "frameId": null,
@@ -703,8 +703,8 @@
     {
       "id": "8Y_MrZbGsrU3H8kQYtEI4",
       "type": "rectangle",
-      "x": 1392.9065060587745,
-      "y": 1131.7862251097836,
+      "x": 2259.0076932599186,
+      "y": 1103.4405632127873,
       "width": 300,
       "height": 208,
       "angle": 0,
@@ -717,8 +717,8 @@
       "opacity": 100,
       "groupIds": [],
       "seed": 368690,
-      "version": 157,
-      "versionNonce": 355798558,
+      "version": 211,
+      "versionNonce": 1130341751,
       "isDeleted": false,
       "boundElements": [
         {
@@ -726,7 +726,7 @@
           "id": "ZrgSrzNR8tSdmsOP-8p-K"
         }
       ],
-      "updated": 1752454202702,
+      "updated": 1752747143255,
       "link": null,
       "locked": false,
       "frameId": null,
@@ -737,8 +737,8 @@
     {
       "id": "ZrgSrzNR8tSdmsOP-8p-K",
       "type": "text",
-      "x": 1397.9065060587745,
-      "y": 1136.7862251097836,
+      "x": 2264.0076932599186,
+      "y": 1108.4405632127873,
       "width": 280,
       "height": 198,
       "angle": 0,
@@ -751,8 +751,8 @@
       "opacity": 100,
       "groupIds": [],
       "seed": 352760,
-      "version": 457,
-      "versionNonce": 1307155038,
+      "version": 511,
+      "versionNonce": 1901715095,
       "isDeleted": false,
       "text": "オブジェクトが選択された状態\nで、タブを押すと、オブジェク\nト変更していってほしい\n\n四角形 → ひし形 → ◯ →\n。。。\n\nこれでループさせていってほし\nい",
       "fontSize": 20,
@@ -764,7 +764,7 @@
       "originalText": "オブジェクトが選択された状態で、タブを押すと、オブジェクト変更していってほしい\n\n四角形 → ひし形 → ◯ → 。。。\n\nこれでループさせていってほしい",
       "lineHeight": 1.1,
       "boundElements": [],
-      "updated": 1752454202702,
+      "updated": 1752747143255,
       "link": null,
       "locked": false,
       "frameId": null,
@@ -776,8 +776,8 @@
     {
       "id": "Q7TZFjmhgngCcotCqjmQt",
       "type": "rectangle",
-      "x": 1693.0978734897458,
-      "y": 509.0282611288811,
+      "x": 2559.1990606908903,
+      "y": 480.68259923188486,
       "width": 289.4511318274766,
       "height": 142,
       "angle": 0,
@@ -790,8 +790,8 @@
       "opacity": 100,
       "groupIds": [],
       "seed": 967759,
-      "version": 367,
-      "versionNonce": 950167824,
+      "version": 421,
+      "versionNonce": 300938167,
       "isDeleted": false,
       "boundElements": [
         {
@@ -799,7 +799,7 @@
           "id": "h3fgBnQ9mQqfiRZGUBfSh"
         }
       ],
-      "updated": 1752449968579,
+      "updated": 1752747143255,
       "link": null,
       "locked": false,
       "frameId": null,
@@ -810,8 +810,8 @@
     {
       "id": "h3fgBnQ9mQqfiRZGUBfSh",
       "type": "text",
-      "x": 1698.0978734897458,
-      "y": 514.0282611288811,
+      "x": 2564.1990606908903,
+      "y": 485.68259923188486,
       "width": 279,
       "height": 132,
       "angle": 0,
@@ -824,8 +824,8 @@
       "opacity": 100,
       "groupIds": [],
       "seed": 91388,
-      "version": 534,
-      "versionNonce": 1486014224,
+      "version": 588,
+      "versionNonce": 491152599,
       "isDeleted": false,
       "text": "tailscaleのVPNでアクセスで\nきるようにしてほしい\n\n今は接続拒否されます。vpnで\nの使用を前提とするので、フル\nアクセスでOKです",
       "fontSize": 20,
@@ -837,7 +837,7 @@
       "originalText": "tailscaleのVPNでアクセスできるようにしてほしい\n\n今は接続拒否されます。vpnでの使用を前提とするので、フルアクセスでOKです",
       "lineHeight": 1.1,
       "boundElements": [],
-      "updated": 1752449968579,
+      "updated": 1752747143255,
       "link": null,
       "locked": false,
       "frameId": null,
@@ -849,8 +849,8 @@
     {
       "id": "XALtjiDEx1V6FOIUF2s3f",
       "type": "rectangle",
-      "x": 1679.810062446765,
-      "y": 277.37331792098064,
+      "x": 2545.9112496479092,
+      "y": 249.02765602398438,
       "width": 300,
       "height": 200,
       "angle": 0,
@@ -863,8 +863,8 @@
       "opacity": 100,
       "groupIds": [],
       "seed": 452217,
-      "version": 133,
-      "versionNonce": 871506015,
+      "version": 187,
+      "versionNonce": 317829623,
       "isDeleted": false,
       "boundElements": [
         {
@@ -872,7 +872,7 @@
           "id": "-fnr_AHhVLe-MhCoubkv9"
         }
       ],
-      "updated": 1752448915500,
+      "updated": 1752747143255,
       "link": null,
       "locked": false,
       "frameId": null,
@@ -883,8 +883,8 @@
     {
       "id": "-fnr_AHhVLe-MhCoubkv9",
       "type": "text",
-      "x": 1684.810062446765,
-      "y": 282.37331792098064,
+      "x": 2550.9112496479092,
+      "y": 254.02765602398438,
       "width": 262.499755859375,
       "height": 176,
       "angle": 0,
@@ -897,8 +897,8 @@
       "opacity": 100,
       "groupIds": [],
       "seed": 689046,
-      "version": 223,
-      "versionNonce": 46987935,
+      "version": 277,
+      "versionNonce": 200694551,
       "isDeleted": false,
       "text": "エラーがでる\n\ncontent.js:1 Uncaught (in\npromise) The message port\nclosed before a response\nwas received.\n\n問題ないエラーとのこと",
       "fontSize": 20,
@@ -910,7 +910,7 @@
       "originalText": "エラーがでる\n\ncontent.js:1 Uncaught (in promise) The message port closed before a response was received.\n\n問題ないエラーとのこと",
       "lineHeight": 1.1,
       "boundElements": [],
-      "updated": 1752448926376,
+      "updated": 1752747143255,
       "link": null,
       "locked": false,
       "frameId": null,
@@ -922,8 +922,8 @@
     {
       "id": "xTCt40EdpxV5Vo_z8gXFY",
       "type": "rectangle",
-      "x": 1385.464438182064,
-      "y": 891.285558608018,
+      "x": 2251.5656253832085,
+      "y": 862.9398967110218,
       "width": 300,
       "height": 200,
       "angle": 0,
@@ -936,8 +936,8 @@
       "opacity": 100,
       "groupIds": [],
       "seed": 470225,
-      "version": 163,
-      "versionNonce": 2130593749,
+      "version": 217,
+      "versionNonce": 214491191,
       "isDeleted": false,
       "boundElements": [
         {
@@ -945,7 +945,7 @@
           "id": "E9cMlHW7IETCu-l__WS1d"
         }
       ],
-      "updated": 1752419801258,
+      "updated": 1752747143255,
       "link": null,
       "locked": false,
       "frameId": null,
@@ -956,8 +956,8 @@
     {
       "id": "E9cMlHW7IETCu-l__WS1d",
       "type": "text",
-      "x": 1390.464438182064,
-      "y": 896.285558608018,
+      "x": 2256.5656253832085,
+      "y": 867.9398967110218,
       "width": 280,
       "height": 88,
       "angle": 0,
@@ -970,8 +970,8 @@
       "opacity": 100,
       "groupIds": [],
       "seed": 506780,
-      "version": 312,
-      "versionNonce": 1139836213,
+      "version": 366,
+      "versionNonce": 390971735,
       "isDeleted": false,
       "text": "更新すると、変更が反映されて\nいないことがある。\n\n更新時も保存の処理を入れる",
       "fontSize": 20,
@@ -983,7 +983,7 @@
       "originalText": "更新すると、変更が反映されていないことがある。\n\n更新時も保存の処理を入れる",
       "lineHeight": 1.1,
       "boundElements": [],
-      "updated": 1752419801258,
+      "updated": 1752747143255,
       "link": null,
       "locked": false,
       "frameId": null,
@@ -995,8 +995,8 @@
     {
       "id": "pk7KvCCJKf-PiNcsbNlvt",
       "type": "rectangle",
-      "x": 1632.220650253713,
-      "y": 196.3143916831824,
+      "x": 2498.3218374548574,
+      "y": 167.96872978618615,
       "width": 274.0281395256857,
       "height": 54,
       "angle": 0,
@@ -1009,8 +1009,8 @@
       "opacity": 100,
       "groupIds": [],
       "seed": 872372,
-      "version": 166,
-      "versionNonce": 336983089,
+      "version": 220,
+      "versionNonce": 2094628471,
       "isDeleted": false,
       "boundElements": [
         {
@@ -1018,7 +1018,7 @@
           "id": "wVHuU37IDBAd9v4uriTRu"
         }
       ],
-      "updated": 1752448857616,
+      "updated": 1752747143255,
       "link": null,
       "locked": false,
       "frameId": null,
@@ -1029,8 +1029,8 @@
     {
       "id": "wVHuU37IDBAd9v4uriTRu",
       "type": "text",
-      "x": 1637.220650253713,
-      "y": 201.3143916831824,
+      "x": 2503.3218374548574,
+      "y": 172.96872978618615,
       "width": 231.39993286132812,
       "height": 44,
       "angle": 0,
@@ -1043,8 +1043,8 @@
       "opacity": 100,
       "groupIds": [],
       "seed": 948764,
-      "version": 194,
-      "versionNonce": 445269521,
+      "version": 248,
+      "versionNonce": 1882232727,
       "isDeleted": false,
       "text": "windowsで動くかの再確認\n確認した",
       "fontSize": 20,
@@ -1056,7 +1056,7 @@
       "originalText": "windowsで動くかの再確認\n確認した",
       "lineHeight": 1.1,
       "boundElements": [],
-      "updated": 1752448857616,
+      "updated": 1752747143255,
       "link": null,
       "locked": false,
       "frameId": null,
@@ -1068,8 +1068,8 @@
     {
       "id": "FPLLraLGNmo8CYcOQz-_B",
       "type": "rectangle",
-      "x": 1750.599047696975,
-      "y": 1094.5203459413412,
+      "x": 2616.7002348981196,
+      "y": 1066.174684044345,
       "width": 283.2979764715212,
       "height": 54,
       "angle": 0,
@@ -1082,8 +1082,8 @@
       "opacity": 100,
       "groupIds": [],
       "seed": 165225,
-      "version": 191,
-      "versionNonce": 1884951913,
+      "version": 245,
+      "versionNonce": 1468501175,
       "isDeleted": false,
       "boundElements": [
         {
@@ -1091,7 +1091,7 @@
           "id": "lQICSWfadD1ApYwwSjz38"
         }
       ],
-      "updated": 1752462715037,
+      "updated": 1752747143255,
       "link": null,
       "locked": false,
       "frameId": null,
@@ -1102,8 +1102,8 @@
     {
       "id": "lQICSWfadD1ApYwwSjz38",
       "type": "text",
-      "x": 1755.599047696975,
-      "y": 1099.5203459413412,
+      "x": 2621.7002348981196,
+      "y": 1071.174684044345,
       "width": 257.7998962402344,
       "height": 44,
       "angle": 0,
@@ -1116,8 +1116,8 @@
       "opacity": 100,
       "groupIds": [],
       "seed": 496004,
-      "version": 213,
-      "versionNonce": 1562738761,
+      "version": 267,
+      "versionNonce": 1585634775,
       "isDeleted": false,
       "text": "file veiwer側に、追加するス\nクリプトを追加する",
       "fontSize": 20,
@@ -1129,7 +1129,7 @@
       "originalText": "file veiwer側に、追加するスクリプトを追加する",
       "lineHeight": 1.1,
       "boundElements": [],
-      "updated": 1752462715037,
+      "updated": 1752747143255,
       "link": null,
       "locked": false,
       "frameId": null,
@@ -1293,8 +1293,8 @@
     {
       "id": "P_LvnEaEvOqIYb7rIr-rn",
       "type": "rectangle",
-      "x": 1753.699331481543,
-      "y": 689.7874351478437,
+      "x": 2619.800518682687,
+      "y": 661.4417732508474,
       "width": 421.60116706811584,
       "height": 290,
       "angle": 0,
@@ -1309,8 +1309,8 @@
         "dBaCxVioyB4gttcPiLU2O"
       ],
       "seed": 628835,
-      "version": 376,
-      "versionNonce": 343177240,
+      "version": 430,
+      "versionNonce": 1211566839,
       "isDeleted": false,
       "boundElements": [
         {
@@ -1318,7 +1318,7 @@
           "id": "TLSYRpe9cQz6GZh8xhNxF"
         }
       ],
-      "updated": 1752451837674,
+      "updated": 1752747143255,
       "link": null,
       "locked": false,
       "frameId": null,
@@ -1329,8 +1329,8 @@
     {
       "id": "TLSYRpe9cQz6GZh8xhNxF",
       "type": "text",
-      "x": 1758.699331481543,
-      "y": 694.7874351478437,
+      "x": 2624.800518682687,
+      "y": 666.4417732508474,
       "width": 408.27166748046875,
       "height": 280,
       "angle": 0,
@@ -1345,8 +1345,8 @@
         "dBaCxVioyB4gttcPiLU2O"
       ],
       "seed": 488643,
-      "version": 599,
-      "versionNonce": 73250072,
+      "version": 653,
+      "versionNonce": 19436567,
       "isDeleted": false,
       "text": "ブラウザのタブの文字は以下としてください\n\n今のexcalidrawのファイルに対して、親フォルダと、そ\nの親のフォルダをつなげて表示したいです。\n\n/Users/sudoupousei/000_work/excalidraw_myao949\n4/personal/top.excalidraw\n\nの場合、\n\nexcalidraw_myao9494-personal-top.excalidraw\n\nとしてほしいのです。\nファイルから見て、2つ上までのを\"-\"で繋ぎます",
       "fontSize": 16,
@@ -1358,7 +1358,7 @@
       "originalText": "ブラウザのタブの文字は以下としてください\n\n今のexcalidrawのファイルに対して、親フォルダと、その親のフォルダをつなげて表示したいです。\n\n/Users/sudoupousei/000_work/excalidraw_myao9494/personal/top.excalidraw\n\nの場合、\n\nexcalidraw_myao9494-personal-top.excalidraw\n\nとしてほしいのです。\nファイルから見て、2つ上までのを\"-\"で繋ぎます",
       "lineHeight": 1.25,
       "boundElements": [],
-      "updated": 1752451837674,
+      "updated": 1752747143255,
       "link": null,
       "locked": false,
       "frameId": null,
@@ -1370,8 +1370,8 @@
     {
       "id": "pd0A_D6qx-ANegrfqGalr",
       "type": "rectangle",
-      "x": 1850.3309627131619,
-      "y": 950.685257958452,
+      "x": 2716.432149914306,
+      "y": 922.3395960614557,
       "width": 323.7727494235076,
       "height": 110,
       "angle": 0,
@@ -1386,8 +1386,8 @@
         "dBaCxVioyB4gttcPiLU2O"
       ],
       "seed": 525458,
-      "version": 195,
-      "versionNonce": 2115457560,
+      "version": 249,
+      "versionNonce": 1900804407,
       "isDeleted": false,
       "boundElements": [
         {
@@ -1395,7 +1395,7 @@
           "id": "TmDiV0CNij3FEIXsw_MD8"
         }
       ],
-      "updated": 1752451837674,
+      "updated": 1752747143255,
       "link": null,
       "locked": false,
       "frameId": null,
@@ -1406,8 +1406,8 @@
     {
       "id": "TmDiV0CNij3FEIXsw_MD8",
       "type": "text",
-      "x": 1855.3309627131619,
-      "y": 955.685257958452,
+      "x": 2721.432149914306,
+      "y": 927.3395960614557,
       "width": 304,
       "height": 100,
       "angle": 0,
@@ -1422,8 +1422,8 @@
         "dBaCxVioyB4gttcPiLU2O"
       ],
       "seed": 635087,
-      "version": 369,
-      "versionNonce": 680873752,
+      "version": 423,
+      "versionNonce": 235256407,
       "isDeleted": false,
       "text": "拡張子はなくしましょう。また、順番を逆\nにしたくなりました。例は、以下のように\nなります\n\ntop-personal-excalidraw_myao9494",
       "fontSize": 16,
@@ -1435,7 +1435,7 @@
       "originalText": "拡張子はなくしましょう。また、順番を逆にしたくなりました。例は、以下のようになります\n\ntop-personal-excalidraw_myao9494",
       "lineHeight": 1.25,
       "boundElements": [],
-      "updated": 1752451837674,
+      "updated": 1752747143255,
       "link": null,
       "locked": false,
       "frameId": null,
@@ -1520,8 +1520,8 @@
     {
       "id": "nibNnOxtgAufYnu6in57S",
       "type": "rectangle",
-      "x": 2064.508784619575,
-      "y": 210.86541383076002,
+      "x": 2930.6099718207197,
+      "y": 182.51975193376376,
       "width": 446.7754315880059,
       "height": 350,
       "angle": 0,
@@ -1536,8 +1536,8 @@
         "GMM3ZjA8Ey72vl3UHnSsH"
       ],
       "seed": 478232,
-      "version": 317,
-      "versionNonce": 1684186886,
+      "version": 371,
+      "versionNonce": 740972407,
       "isDeleted": false,
       "boundElements": [
         {
@@ -1545,7 +1545,7 @@
           "id": "ze2VG3CBE0gACTXUFzqSe"
         }
       ],
-      "updated": 1752463695998,
+      "updated": 1752747143255,
       "link": null,
       "locked": false,
       "frameId": null,
@@ -1556,8 +1556,8 @@
     {
       "id": "ze2VG3CBE0gACTXUFzqSe",
       "type": "text",
-      "x": 2069.508784619575,
-      "y": 215.86541383076002,
+      "x": 2935.6099718207197,
+      "y": 187.51975193376376,
       "width": 431.5835876464844,
       "height": 340,
       "angle": 0,
@@ -1575,11 +1575,11 @@
       "index": "b03",
       "roundness": null,
       "seed": 1824456672,
-      "version": 701,
-      "versionNonce": 1891882566,
+      "version": 755,
+      "versionNonce": 301879447,
       "isDeleted": false,
       "boundElements": [],
-      "updated": 1752463695998,
+      "updated": 1752747143255,
       "link": null,
       "locked": false,
       "text": "フォルダのボタンを押したとき、パスがおかしくなってい\nる。\nパス切は / になるようにしてください\n\n現\n在:http://localhost:5001/fullpath?path=%2FUsers%2F\nsudoupousei%2F000_work%2Fexcalidraw_myao9494%\n2Fpersonal&filter=excalidraw,excalidraw.svg,excalidraw.p\nng&hideFolders=true\n\nあるべき\n姿:http://localhost:5001/view/excalidraw_myao9494/pe\nrsonal?filter=md,svg,csv,pdf,ipynb,py,docx,xlsx,xlsm,pptx,\nmsg,lnk,excalidraw,excalidraw.svg,excalidraw.png\n\n\nlocalhost:5001側で処理した方が適切でしょうか?",
@@ -1595,8 +1595,8 @@
     {
       "id": "bSCXGnh7NdsicL1EddUfN",
       "type": "image",
-      "x": 2005.2336940846717,
-      "y": 194.92909128758754,
+      "x": 2871.3348812858158,
+      "y": 166.58342939059128,
       "width": 56,
       "height": 76,
       "angle": 0,
@@ -1614,11 +1614,11 @@
       "index": "b04",
       "roundness": null,
       "seed": 1392942048,
-      "version": 360,
-      "versionNonce": 264052102,
+      "version": 414,
+      "versionNonce": 1228285367,
       "isDeleted": false,
       "boundElements": [],
-      "updated": 1752463695998,
+      "updated": 1752747143255,
       "link": null,
       "locked": false,
       "status": "pending",
@@ -1632,8 +1632,8 @@
     {
       "id": "4mQO-CgpGt_G3tQ5_pela",
       "type": "rectangle",
-      "x": 2661.2380340022382,
-      "y": 203.83145410824693,
+      "x": 3527.3392212033823,
+      "y": 175.48579221125067,
       "width": 446.7754315880059,
       "height": 350,
       "angle": 0,
@@ -1648,8 +1648,8 @@
         "GiUbaPvdRoT0svlSnh3pB"
       ],
       "seed": 716063504,
-      "version": 320,
-      "versionNonce": 274357520,
+      "version": 374,
+      "versionNonce": 821450455,
       "isDeleted": false,
       "boundElements": [
         {
@@ -1657,7 +1657,7 @@
           "id": "qcfbukFIjrTRP8czzSoSz"
         }
       ],
-      "updated": 1752465123391,
+      "updated": 1752747143255,
       "link": null,
       "locked": false,
       "frameId": null,
@@ -1668,8 +1668,8 @@
     {
       "id": "qcfbukFIjrTRP8czzSoSz",
       "type": "text",
-      "x": 2666.2380340022382,
-      "y": 268.83145410824693,
+      "x": 3532.3392212033823,
+      "y": 240.48579221125067,
       "width": 427.1036376953125,
       "height": 220,
       "angle": 0,
@@ -1687,11 +1687,11 @@
       "index": "b08",
       "roundness": null,
       "seed": 269705488,
-      "version": 909,
-      "versionNonce": 872328286,
+      "version": 963,
+      "versionNonce": 1339253751,
       "isDeleted": false,
       "boundElements": [],
-      "updated": 1752465267168,
+      "updated": 1752747143255,
       "link": null,
       "locked": false,
       "text": "\nhttp://localhost:3001/?filepath=/Users/sudoupousei/0\n00_work/HOME/home.excalidraw\n\nのとき、フォルダのぼたんを押すと、\n\nhttp://localhost:3001/ \n\nに飛んでしまいます。\n\nlocalhost:5001へパス付きで飛ばないといけないです",
@@ -1707,8 +1707,8 @@
     {
       "id": "gtsimCN-9Ys5nhJwGaeTr",
       "type": "image",
-      "x": 2601.962943467335,
-      "y": 187.89513156507445,
+      "x": 3468.0641306684793,
+      "y": 159.5494696680782,
       "width": 56,
       "height": 76,
       "angle": 0,
@@ -1726,11 +1726,11 @@
       "index": "b09",
       "roundness": null,
       "seed": 119848720,
-      "version": 363,
-      "versionNonce": 1563179792,
+      "version": 417,
+      "versionNonce": 1708248343,
       "isDeleted": false,
       "boundElements": [],
-      "updated": 1752465123391,
+      "updated": 1752747143255,
       "link": null,
       "locked": false,
       "status": "pending",
@@ -1744,8 +1744,8 @@
     {
       "id": "q7SCxx0wvDW9CzqkCKJsj",
       "type": "rectangle",
-      "x": 1796.2209206232646,
-      "y": 1217.3539317004306,
+      "x": 2662.3221078244087,
+      "y": 1189.0082698034344,
       "width": 300.22625798231184,
       "height": 200,
       "angle": 0,
@@ -1758,8 +1758,8 @@
       "opacity": 100,
       "groupIds": [],
       "seed": 971997477,
-      "version": 151,
-      "versionNonce": 1612809515,
+      "version": 205,
+      "versionNonce": 1046876727,
       "isDeleted": false,
       "boundElements": [
         {
@@ -1767,7 +1767,7 @@
           "id": "dthYZozQW7w3OdYUaXhyo"
         }
       ],
-      "updated": 1752478839245,
+      "updated": 1752747143255,
       "link": null,
       "locked": false,
       "frameId": null,
@@ -1778,8 +1778,8 @@
     {
       "id": "dthYZozQW7w3OdYUaXhyo",
       "type": "text",
-      "x": 1801.2209206232646,
-      "y": 1222.3539317004306,
+      "x": 2667.3221078244087,
+      "y": 1194.0082698034344,
       "width": 280,
       "height": 154,
       "angle": 0,
@@ -1792,8 +1792,8 @@
       "opacity": 100,
       "groupIds": [],
       "seed": 1158550661,
-      "version": 468,
-      "versionNonce": 531474379,
+      "version": 522,
+      "versionNonce": 1114944343,
       "isDeleted": false,
       "text": "オブジェクトを消したとき、変\n更と認識されずには、保存され\nない事象が発生しました。\n\n今一度、すべての変更に対し\nて、自動保存されているかを確\n認してください",
       "fontSize": 20,
@@ -1805,7 +1805,7 @@
       "originalText": "オブジェクトを消したとき、変更と認識されずには、保存されない事象が発生しました。\n\n今一度、すべての変更に対して、自動保存されているかを確認してください",
       "lineHeight": 1.1,
       "boundElements": [],
-      "updated": 1752478839245,
+      "updated": 1752747143255,
       "link": null,
       "locked": false,
       "frameId": null,
@@ -1817,7 +1817,7 @@
     {
       "id": "wZBUeaIA59J4etUo_c4qJ",
       "type": "rectangle",
-      "x": -772.3262085048258,
+      "x": -769.5734537151455,
       "y": 401.45509471355916,
       "width": 300,
       "height": 200,
@@ -1831,8 +1831,8 @@
       "opacity": 100,
       "groupIds": [],
       "seed": 1237531621,
-      "version": 177,
-      "versionNonce": 138951511,
+      "version": 181,
+      "versionNonce": 219901271,
       "isDeleted": false,
       "boundElements": [
         {
@@ -1840,7 +1840,7 @@
           "id": "9XrYe-CuNFOA5V1eV521u"
         }
       ],
-      "updated": 1752660471360,
+      "updated": 1752747379816,
       "link": null,
       "locked": false,
       "frameId": null,
@@ -1851,7 +1851,7 @@
     {
       "id": "9XrYe-CuNFOA5V1eV521u",
       "type": "text",
-      "x": -767.3262085048258,
+      "x": -764.5734537151455,
       "y": 406.45509471355916,
       "width": 288.5599365234375,
       "height": 44,
@@ -1865,8 +1865,8 @@
       "opacity": 100,
       "groupIds": [],
       "seed": 1865541,
-      "version": 232,
-      "versionNonce": 477411447,
+      "version": 236,
+      "versionNonce": 1142008439,
       "isDeleted": false,
       "text": "ctrl + s で上書き保存する機能\nをつける",
       "fontSize": 20,
@@ -1878,7 +1878,7 @@
       "originalText": "ctrl + s で上書き保存する機能をつける",
       "lineHeight": 1.1,
       "boundElements": [],
-      "updated": 1752660471360,
+      "updated": 1752747379816,
       "link": null,
       "locked": false,
       "frameId": null,
@@ -1890,8 +1890,8 @@
     {
       "id": "nxg9JiOdBkNl0GOhNP8EL",
       "type": "rectangle",
-      "x": 2283.929464649325,
-      "y": 647.2555103160297,
+      "x": 3150.0306518504694,
+      "y": 618.9098484190334,
       "width": 300,
       "height": 310,
       "angle": 0,
@@ -1904,8 +1904,8 @@
       "opacity": 100,
       "groupIds": [],
       "seed": 850753,
-      "version": 44,
-      "versionNonce": 1842561132,
+      "version": 98,
+      "versionNonce": 1246900343,
       "isDeleted": false,
       "boundElements": [
         {
@@ -1913,7 +1913,7 @@
           "id": "lcax47snbRh3_s607iMLY"
         }
       ],
-      "updated": 1752577705980,
+      "updated": 1752747143255,
       "link": null,
       "locked": false,
       "frameId": null,
@@ -1924,8 +1924,8 @@
     {
       "id": "lcax47snbRh3_s607iMLY",
       "type": "text",
-      "x": 2288.929464649325,
-      "y": 652.2555103160297,
+      "x": 3155.0306518504694,
+      "y": 623.9098484190334,
       "width": 280,
       "height": 300,
       "angle": 0,
@@ -1938,8 +1938,8 @@
       "opacity": 100,
       "groupIds": [],
       "seed": 474743,
-      "version": 314,
-      "versionNonce": 1760056044,
+      "version": 368,
+      "versionNonce": 801311127,
       "isDeleted": false,
       "text": "会社に持っていって、オフライ\nンで繋いだとき、フォントがな\nく、手書き風にできませんでし\nた。\n\nhttps://github.com/excalidra\nw/excalidraw\n\nここにあるように、フォントは\nアセットに含めないとだめなよ\nうです。ビルド時に、アセット\nに含めるようにしてください",
       "fontSize": 20,
@@ -1951,7 +1951,7 @@
       "originalText": "会社に持っていって、オフラインで繋いだとき、フォントがなく、手書き風にできませんでした。\n\nhttps://github.com/excalidraw/excalidraw\n\nここにあるように、フォントはアセットに含めないとだめなようです。ビルド時に、アセットに含めるようにしてください",
       "lineHeight": 1.25,
       "boundElements": [],
-      "updated": 1752577705980,
+      "updated": 1752747143255,
       "link": null,
       "locked": false,
       "frameId": null,
@@ -1963,8 +1963,8 @@
     {
       "id": "zqWQlr11Hxye6mRTp7ui_",
       "type": "rectangle",
-      "x": 2671.1859689900484,
-      "y": 670.4812786884688,
+      "x": 3537.2871561911925,
+      "y": 642.1356167914726,
       "width": 300,
       "height": 200,
       "angle": 0,
@@ -1977,8 +1977,8 @@
       "opacity": 100,
       "groupIds": [],
       "seed": 465206,
-      "version": 77,
-      "versionNonce": 111735519,
+      "version": 131,
+      "versionNonce": 536592055,
       "isDeleted": false,
       "boundElements": [
         {
@@ -1986,7 +1986,7 @@
           "id": "gCtgWiaTkpkdLnndQgoMw"
         }
       ],
-      "updated": 1752578403832,
+      "updated": 1752747143255,
       "link": null,
       "locked": false,
       "frameId": null,
@@ -1997,8 +1997,8 @@
     {
       "id": "gCtgWiaTkpkdLnndQgoMw",
       "type": "text",
-      "x": 2676.1859689900484,
-      "y": 675.4812786884688,
+      "x": 3542.2871561911925,
+      "y": 647.1356167914726,
       "width": 280,
       "height": 66,
       "angle": 0,
@@ -2011,8 +2011,8 @@
       "opacity": 100,
       "groupIds": [],
       "seed": 686107,
-      "version": 239,
-      "versionNonce": 1675968255,
+      "version": 293,
+      "versionNonce": 765513687,
       "isDeleted": false,
       "text": "今の付箋の大きさが、大きすぎ\nました。横は、そのままで、縦\nを半分にしてください",
       "fontSize": 20,
@@ -2024,7 +2024,7 @@
       "originalText": "今の付箋の大きさが、大きすぎました。横は、そのままで、縦を半分にしてください",
       "lineHeight": 1.1,
       "boundElements": [],
-      "updated": 1752578403832,
+      "updated": 1752747143255,
       "link": null,
       "locked": false,
       "frameId": null,
@@ -2109,8 +2109,8 @@
     {
       "id": "emAXMuzEv6Tf6er7RR9s3",
       "type": "rectangle",
-      "x": 2190.959177265014,
-      "y": 1045.079805789115,
+      "x": 3057.0603644661587,
+      "y": 1016.7341438921187,
       "width": 344.6456149943824,
       "height": 231.7852802376324,
       "angle": 0,
@@ -2123,8 +2123,8 @@
       "opacity": 100,
       "groupIds": [],
       "seed": 947941,
-      "version": 124,
-      "versionNonce": 642027488,
+      "version": 178,
+      "versionNonce": 583449847,
       "isDeleted": false,
       "boundElements": [
         {
@@ -2132,7 +2132,7 @@
           "id": "CJ0W57zwpAry5BqSEFI4Q"
         }
       ],
-      "updated": 1752664544172,
+      "updated": 1752747143255,
       "link": null,
       "locked": false,
       "frameId": null,
@@ -2143,8 +2143,8 @@
     {
       "id": "CJ0W57zwpAry5BqSEFI4Q",
       "type": "text",
-      "x": 2195.959177265014,
-      "y": 1050.079805789115,
+      "x": 3062.0603644661587,
+      "y": 1021.7341438921187,
       "width": 331.3399658203125,
       "height": 198,
       "angle": 0,
@@ -2157,8 +2157,8 @@
       "opacity": 100,
       "groupIds": [],
       "seed": 356965,
-      "version": 469,
-      "versionNonce": 854037472,
+      "version": 523,
+      "versionNonce": 317851159,
       "isDeleted": false,
       "text": "コードを開く のボタンの隣の以下の\n機能の svgで保存 ボタンを実装して\nください。\n\n選択されたオブジェクトに対して、\nこのボタンを押すと、ファイル名を\n聞いてきて、そのファイル名で、svg\nファイルとして、現愛のフォルダに\n保存される。",
       "fontSize": 20,
@@ -2170,7 +2170,7 @@
       "originalText": "コードを開く のボタンの隣の以下の機能の svgで保存 ボタンを実装してください。\n\n選択されたオブジェクトに対して、このボタンを押すと、ファイル名を聞いてきて、そのファイル名で、svgファイルとして、現愛のフォルダに保存される。",
       "lineHeight": 1.1,
       "boundElements": [],
-      "updated": 1752664544172,
+      "updated": 1752747143255,
       "link": null,
       "locked": false,
       "frameId": null,
@@ -2182,8 +2182,8 @@
     {
       "id": "HcfdsGrhwZi4XrWFYEopb",
       "type": "rectangle",
-      "x": 1386.4145821455493,
-      "y": 1470.6144348633188,
+      "x": 2252.5157693466936,
+      "y": 1442.2687729663226,
       "width": 300,
       "height": 142,
       "angle": 0,
@@ -2196,8 +2196,8 @@
       "opacity": 100,
       "groupIds": [],
       "seed": 1484433650,
-      "version": 101,
-      "versionNonce": 143891639,
+      "version": 155,
+      "versionNonce": 756493111,
       "isDeleted": false,
       "boundElements": [
         {
@@ -2205,7 +2205,7 @@
           "id": "vxZpH90oKTDWdU9-Yc-8I"
         }
       ],
-      "updated": 1752746351446,
+      "updated": 1752747143255,
       "link": null,
       "locked": false,
       "frameId": null,
@@ -2216,8 +2216,8 @@
     {
       "id": "vxZpH90oKTDWdU9-Yc-8I",
       "type": "text",
-      "x": 1391.4145821455493,
-      "y": 1475.6144348633188,
+      "x": 2257.5157693466936,
+      "y": 1447.2687729663226,
       "width": 275.25982666015625,
       "height": 132,
       "angle": 0,
@@ -2230,8 +2230,8 @@
       "opacity": 100,
       "groupIds": [],
       "seed": 215792306,
-      "version": 336,
-      "versionNonce": 864873943,
+      "version": 390,
+      "versionNonce": 1301982295,
       "isDeleted": false,
       "text": "windowsにおいて、opencodeと\nフォルダを開くが動かないで\nす。getCurrentFolder がうま\nく動いていない気がします。\n調べてみてください\n",
       "fontSize": 20,
@@ -2243,7 +2243,7 @@
       "originalText": "windowsにおいて、opencodeとフォルダを開くが動かないです。getCurrentFolder がうまく動いていない気がします。\n調べてみてください\n",
       "lineHeight": 1.1,
       "boundElements": [],
-      "updated": 1752746351446,
+      "updated": 1752747143255,
       "link": null,
       "locked": false,
       "frameId": null,
@@ -2255,8 +2255,8 @@
     {
       "id": "q736oWT2wkptxm_V5_9So",
       "type": "rectangle",
-      "x": -173.151371805086,
-      "y": 205.9873130641207,
+      "x": 2655.8022385291906,
+      "y": 1459.4679883620938,
       "width": 300,
       "height": 186,
       "angle": 0,
@@ -2269,8 +2269,8 @@
       "opacity": 100,
       "groupIds": [],
       "seed": 393890,
-      "version": 16,
-      "versionNonce": 1758630009,
+      "version": 179,
+      "versionNonce": 1347488119,
       "isDeleted": false,
       "boundElements": [
         {
@@ -2278,7 +2278,7 @@
           "id": "Mjs0bry5erkEa8TMcUdxx"
         }
       ],
-      "updated": 1752746427276,
+      "updated": 1752747143255,
       "link": null,
       "locked": false,
       "frameId": null,
@@ -2289,8 +2289,8 @@
     {
       "id": "Mjs0bry5erkEa8TMcUdxx",
       "type": "text",
-      "x": -168.151371805086,
-      "y": 210.9873130641207,
+      "x": 2660.8022385291906,
+      "y": 1464.4679883620938,
       "width": 280,
       "height": 176,
       "angle": 0,
@@ -2303,8 +2303,8 @@
       "opacity": 100,
       "groupIds": [],
       "seed": 443016,
-      "version": 287,
-      "versionNonce": 2070906039,
+      "version": 450,
+      "versionNonce": 578732695,
       "isDeleted": false,
       "text": "バックアップなのですが、10個\nを超えたら、一番古いバックア\nップを削除して、保存するよう\nにしてください。\n\n10個を超えるとバックアップが\n保存されていなくて、今日、焦\nりました。",
       "fontSize": 20,
@@ -2315,14 +2315,15 @@
       "containerId": "q736oWT2wkptxm_V5_9So",
       "originalText": "バックアップなのですが、10個を超えたら、一番古いバックアップを削除して、保存するようにしてください。\n\n10個を超えるとバックアップが保存されていなくて、今日、焦りました。",
       "lineHeight": 1.1,
-      "boundElements": null,
-      "updated": 1752746428592,
+      "boundElements": [],
+      "updated": 1752747143255,
       "link": null,
       "locked": false,
       "frameId": null,
       "roundness": null,
       "customData": null,
-      "index": "b0Q"
+      "index": "b0Q",
+      "autoResize": true
     }
   ],
   "appState": {
@@ -2337,10 +2338,10 @@
     "currentItemRoughness": 1,
     "currentItemOpacity": 100,
     "zoom": {
-      "value": 1.031506
+      "value": 0.409307
     },
-    "scrollX": 990.0012232179977,
-    "scrollY": 174.23690211259776
+    "scrollX": -109.70742587848531,
+    "scrollY": 475.08356814956676
   },
   "files": {
     "9bebd31c7dba3d51b8c8514c36ec2d0ecc23f422": {
