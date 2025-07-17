@@ -153,11 +153,26 @@ export default function ExampleApp({
   const [lastSavedElements, setLastSavedElements] = useState<string>('');
   const [lastFileModified, setLastFileModified] = useState<number>(0);
   
-  // 現在のフォルダパスを取得する関数
+  // 現在のフォルダパスを取得する関数（Windows/Unix両対応）
   const getCurrentFolder = useCallback(() => {
-    if (!currentFilePath) return null;
-    const lastSlashIndex = currentFilePath.lastIndexOf('/');
-    return lastSlashIndex !== -1 ? currentFilePath.substring(0, lastSlashIndex) : null;
+    if (!currentFilePath) {
+      console.log('getCurrentFolder: currentFilePath is null or undefined');
+      return null;
+    }
+    
+    // Windows と Unix の両方のパス区切り文字に対応
+    const normalizedPath = currentFilePath.replace(/\\/g, '/');
+    const lastSlashIndex = normalizedPath.lastIndexOf('/');
+    
+    const result = lastSlashIndex !== -1 ? normalizedPath.substring(0, lastSlashIndex) : null;
+    
+    console.log('getCurrentFolder Debug Info:');
+    console.log('  Original currentFilePath:', currentFilePath);
+    console.log('  Normalized path:', normalizedPath);
+    console.log('  Last slash index:', lastSlashIndex);
+    console.log('  Result folder path:', result);
+    
+    return result;
   }, [currentFilePath]);
   
   // SVGファイルとして保存する関数
