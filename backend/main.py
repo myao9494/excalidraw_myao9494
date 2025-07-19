@@ -136,7 +136,7 @@ def create_backup(filepath: str) -> bool:
         
         # 既存のバックアップファイルをチェック
         existing_backups = []
-        pattern = f"{base_name}_backup_*.{extension}"
+        pattern = f"{base_name}_backup_*{extension}"
         
         for backup_file in backup_dir.glob(pattern):
             try:
