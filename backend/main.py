@@ -8,6 +8,7 @@ import json
 import os
 import time
 import shutil
+from datetime import datetime, timedelta
 from typing import Dict, List, Any, Optional
 
 app = FastAPI(title="Excalidraw File API")
@@ -109,8 +110,11 @@ class SaveSvgRequest(BaseModel):
 
 def create_backup(filepath: str) -> bool:
     """
-    バックアップを作成する関数
-    10個を超えた場合、最も古いバックアップを削除して新しいバックアップを保存
+    新しいバックアップシステム
+    - 10分間隔でバックアップを作成
+    - 前日の最新のみ残す
+    - 2週間以上古いものは自動削除
+    - ファイル名に日時（秒まで）を含める
     """
     try:
         file_path = Path(filepath)
@@ -127,47 +131,72 @@ def create_backup(filepath: str) -> bool:
         base_name = file_path.stem
         extension = file_path.suffix
         
-        # 最新のバックアップがあるかチェック（5分以内かどうか）
-        current_time = time.time()
-        latest_backup_time = 0
+        current_time = datetime.now()
+        current_timestamp = current_time.timestamp()
         
-        # 既存のバックアップファイルから最新のものを見つける
+        # 既存のバックアップファイルをチェック
         existing_backups = []
-        for i in range(10):
-            backup_name = f"{base_name}_backup_{i:02d}{extension}"
-            backup_path = backup_dir / backup_name
+        pattern = f"{base_name}_backup_*.{extension}"
+        
+        for backup_file in backup_dir.glob(pattern):
+            try:
+                backup_time = backup_file.stat().st_mtime
+                existing_backups.append((backup_file, backup_time))
+            except OSError:
+                continue
+        
+        # 10分以内（600秒）にバックアップがある場合はスキップ
+        if existing_backups:
+            latest_backup_time = max(existing_backups, key=lambda x: x[1])[1]
+            if (current_timestamp - latest_backup_time) < 600:
+                print(f"Skip backup: Last backup was {int(current_timestamp - latest_backup_time)} seconds ago")
+                return True
+        
+        # 2週間以上古いバックアップを削除
+        two_weeks_ago = current_timestamp - (14 * 24 * 3600)
+        for backup_file, backup_time in existing_backups:
+            if backup_time < two_weeks_ago:
+                try:
+                    backup_file.unlink()
+                    print(f"Deleted old backup (>2 weeks): {backup_file}")
+                except OSError as e:
+                    print(f"Failed to delete old backup {backup_file}: {e}")
+        
+        # 前日の最新以外を削除
+        if existing_backups:
+            # 残存するバックアップを再取得
+            remaining_backups = []
+            for backup_file in backup_dir.glob(pattern):
+                try:
+                    backup_time = backup_file.stat().st_mtime
+                    remaining_backups.append((backup_file, backup_time))
+                except OSError:
+                    continue
             
-            if backup_path.exists():
-                backup_time = backup_path.stat().st_mtime
-                existing_backups.append((backup_path, backup_time))
-                if backup_time > latest_backup_time:
-                    latest_backup_time = backup_time
+            # 日付ごとにグループ化
+            daily_backups = {}
+            for backup_file, backup_time in remaining_backups:
+                backup_date = datetime.fromtimestamp(backup_time).date()
+                if backup_date not in daily_backups:
+                    daily_backups[backup_date] = []
+                daily_backups[backup_date].append((backup_file, backup_time))
+            
+            # 各日付で最新のもの以外を削除
+            today = current_time.date()
+            for backup_date, day_backups in daily_backups.items():
+                if backup_date != today and len(day_backups) > 1:
+                    # 最新のもの以外を削除
+                    day_backups.sort(key=lambda x: x[1])  # 時刻でソート
+                    for backup_file, _ in day_backups[:-1]:  # 最新以外
+                        try:
+                            backup_file.unlink()
+                            print(f"Deleted old daily backup: {backup_file}")
+                        except OSError as e:
+                            print(f"Failed to delete daily backup {backup_file}: {e}")
         
-        # 5分以内（300秒）にバックアップがある場合はスキップ
-        if latest_backup_time > 0 and (current_time - latest_backup_time) < 300:
-            print(f"Skip backup: Last backup was {int(current_time - latest_backup_time)} seconds ago")
-            return True
-        
-        # バックアップファイルのローテーション
-        if len(existing_backups) >= 10:
-            # 10個以上の場合、最も古いものを削除
-            existing_backups.sort(key=lambda x: x[1])  # 時刻でソート
-            oldest_backup_path = existing_backups[0][0]
-            oldest_backup_path.unlink()  # 古いバックアップを削除
-            print(f"Deleted oldest backup: {oldest_backup_path}")
-        
-        # 新しいバックアップファイルの名前を決定
-        # 削除されたスロットまたは空いているスロットを使用
-        next_index = 0
-        for i in range(10):
-            backup_name = f"{base_name}_backup_{i:02d}{extension}"
-            backup_path = backup_dir / backup_name
-            if not backup_path.exists():
-                next_index = i
-                break
-        
-        # バックアップファイル名を作成
-        backup_name = f"{base_name}_backup_{next_index:02d}{extension}"
+        # 新しいバックアップファイル名を生成（秒まで含む）
+        timestamp_str = current_time.strftime("%Y%m%d_%H%M%S")
+        backup_name = f"{base_name}_backup_{timestamp_str}{extension}"
         backup_path = backup_dir / backup_name
         
         # バックアップを作成
