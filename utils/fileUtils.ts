@@ -14,7 +14,22 @@ export interface ExcalidrawFileData {
 
 export const getFilePathFromUrl = (): string | null => {
   const urlParams = new URLSearchParams(window.location.search);
-  return urlParams.get('filepath');
+  const rawFilepath = urlParams.get('filepath');
+  
+  if (!rawFilepath) {
+    return null;
+  }
+  
+  try {
+    // 明示的にデコードを行う（ダブルクォートなどの特殊文字に対応）
+    const decodedFilepath = decodeURIComponent(rawFilepath);
+    console.log('[DEBUG] Original filepath param:', rawFilepath);
+    console.log('[DEBUG] Decoded filepath:', decodedFilepath);
+    return decodedFilepath;
+  } catch (error) {
+    console.warn('Failed to decode filepath, using original:', error);
+    return rawFilepath;
+  }
 };
 
 const API_BASE_URL = 'http://localhost:8000';

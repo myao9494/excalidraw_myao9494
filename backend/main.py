@@ -261,7 +261,13 @@ async def root():
 @app.get("/api/load-file")
 async def load_file(filepath: str):
     try:
-        file_path = Path(filepath)
+        # URLデコードを明示的に行う（ダブルクォートを含む文字列に対応）
+        import urllib.parse
+        decoded_filepath = urllib.parse.unquote_plus(filepath)
+        print(f"[DEBUG] Original filepath: {filepath}")
+        print(f"[DEBUG] Decoded filepath: {decoded_filepath}")
+        
+        file_path = Path(decoded_filepath)
         
         # ファイルが存在しない場合
         if not file_path.exists():
@@ -290,7 +296,13 @@ async def load_file(filepath: str):
 @app.get("/api/file-info")
 async def get_file_info(filepath: str):
     try:
-        file_path = Path(filepath)
+        # URLデコードを明示的に行う（ダブルクォートを含む文字列に対応）
+        import urllib.parse
+        decoded_filepath = urllib.parse.unquote_plus(filepath)
+        print(f"[DEBUG] Original filepath: {filepath}")
+        print(f"[DEBUG] Decoded filepath: {decoded_filepath}")
+        
+        file_path = Path(decoded_filepath)
         
         # ファイルが存在しない場合
         if not file_path.exists():
