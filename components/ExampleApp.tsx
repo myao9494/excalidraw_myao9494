@@ -152,6 +152,15 @@ export default function ExampleApp({
   const [currentFilePath, setCurrentFilePath] = useState<string | null>(null);
   const [lastSavedElements, setLastSavedElements] = useState<string>('');
   const [lastFileModified, setLastFileModified] = useState<number>(0);
+  const [saveNotification, setSaveNotification] = useState<{message: string; isError?: boolean} | null>(null);
+  
+  // 保存通知を表示する関数
+  const showSaveNotification = useCallback((message: string, isError: boolean = false) => {
+    setSaveNotification({message, isError});
+    setTimeout(() => {
+      setSaveNotification(null);
+    }, 2000);
+  }, []);
   
   // 現在のフォルダパスを取得する関数（Windows/Unix両対応）
   const getCurrentFolder = useCallback(() => {
@@ -540,7 +549,8 @@ export default function ExampleApp({
   const performSave = useCallback((
     elements: NonDeletedExcalidrawElement[],
     appState: any,
-    files: any
+    files: any,
+    forceBackup: boolean = false
   ) => {
     const now = Date.now();
     
@@ -601,7 +611,7 @@ export default function ExampleApp({
           files: files || {}
         };
         
-        saveExcalidrawFile(currentFilePathValue, fileData).then(success => {
+        saveExcalidrawFile(currentFilePathValue, fileData, forceBackup).then(success => {
           if (success) {
             console.log(`[Save] File saved successfully (${elements.length} elements, ${deletedCount} deleted)`);
             setLastSavedElements(currentSummaryString);
@@ -646,6 +656,20 @@ export default function ExampleApp({
     // 保存後に実際の時刻を設定
     lastSaveTimeRef.current = Date.now();
   }, [performSave]);
+
+  // 手動保存関数（強制バックアップ付き）
+  const manualSave = useCallback((
+    elements: NonDeletedExcalidrawElement[],
+    appState: any,
+    files: any
+  ) => {
+    console.log(`[Manual Save] Executing manual save with forced backup (elements: ${elements.length})`);
+    
+    // 既存のperformSave関数を使用して手動保存を実行
+    performSave(elements, appState, files, true); // 強制バックアップフラグを渡す
+    showSaveNotification('保存しました');
+  }, [performSave, showSaveNotification]);
+
 
   // ウィンドウを閉じる前と各種イベントでの強制保存
   useEffect(() => {
@@ -818,6 +842,13 @@ export default function ExampleApp({
 
   return (
     <div className="App" ref={appRef}>
+      {/* 保存通知 */}
+      {saveNotification && (
+        <div className={`save-notification ${saveNotification.isError ? 'error' : ''}`}>
+          {saveNotification.message}
+        </div>
+      )}
+      
       {/* カスタムヘッダー */}
       <div className="custom-header">
         <div className="header-actions">
@@ -853,6 +884,24 @@ export default function ExampleApp({
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
               <polyline points="16,18 22,12 16,6"></polyline>
               <polyline points="8,6 2,12 8,18"></polyline>
+            </svg>
+          </button>
+          <button 
+            className="header-btn manual-save-btn"
+            onClick={() => {
+              if (excalidrawAPI) {
+                const elements = excalidrawAPI.getSceneElements();
+                const appState = excalidrawAPI.getAppState();
+                const files = excalidrawAPI.getFiles();
+                manualSave(elements, appState, files);
+              }
+            }}
+            title="手動保存（強制バックアップ）"
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path>
+              <polyline points="17,21 17,13 7,13 7,21"></polyline>
+              <polyline points="7,3 7,8 15,8"></polyline>
             </svg>
           </button>
           <button 

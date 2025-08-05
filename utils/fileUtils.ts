@@ -60,7 +60,7 @@ export const getFileInfo = async (filePath: string): Promise<{ modified: number;
   }
 };
 
-export const saveExcalidrawFile = async (filePath: string, data: ExcalidrawFileData): Promise<boolean> => {
+export const saveExcalidrawFile = async (filePath: string, data: ExcalidrawFileData, forceBackup: boolean = false): Promise<boolean> => {
   try {
     const response = await fetch(`${API_BASE_URL}/api/save-file`, {
       method: 'POST',
@@ -69,7 +69,8 @@ export const saveExcalidrawFile = async (filePath: string, data: ExcalidrawFileD
       },
       body: JSON.stringify({
         filepath: filePath,
-        data: data
+        data: data,
+        force_backup: forceBackup
       })
     });
     

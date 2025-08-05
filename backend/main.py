@@ -74,6 +74,7 @@ class ExcalidrawFileData(BaseModel):
 class SaveFileRequest(BaseModel):
     filepath: str
     data: ExcalidrawFileData
+    force_backup: bool = False  # デフォルトは自動保存扱い（10分制限あり）
 
 class SaveEmailRequest(BaseModel):
     emailData: str
@@ -108,10 +109,11 @@ class SaveSvgRequest(BaseModel):
     filepath: str
     svg_content: str
 
-def create_backup(filepath: str) -> bool:
+def create_backup(filepath: str, force: bool = False) -> bool:
     """
-    新しいバックアップシステム
-    - 10分間隔でバックアップを作成
+    バックアップシステム
+    - force=False: 10分間隔でバックアップを作成（自動保存）
+    - force=True: 時間制限なしでバックアップを作成（手動更新時）
     - 前日の最新のみ残す
     - 2週間以上古いものは自動削除
     - ファイル名に日時（秒まで）を含める
@@ -145,8 +147,8 @@ def create_backup(filepath: str) -> bool:
             except OSError:
                 continue
         
-        # 10分以内（600秒）にバックアップがある場合はスキップ
-        if existing_backups:
+        # 10分以内（600秒）にバックアップがある場合はスキップ（強制モードでない場合のみ）
+        if not force and existing_backups:
             latest_backup_time = max(existing_backups, key=lambda x: x[1])[1]
             if (current_timestamp - latest_backup_time) < 600:
                 print(f"Skip backup: Last backup was {int(current_timestamp - latest_backup_time)} seconds ago")
@@ -201,7 +203,10 @@ def create_backup(filepath: str) -> bool:
         
         # バックアップを作成
         shutil.copy2(file_path, backup_path)
-        print(f"Backup created: {backup_path}")
+        if force:
+            print(f"Forced backup created: {backup_path}")
+        else:
+            print(f"Backup created: {backup_path}")
         
         return True
         
@@ -312,8 +317,8 @@ async def save_file(request: SaveFileRequest):
         # ディレクトリが存在しない場合は作成
         file_path.parent.mkdir(parents=True, exist_ok=True)
         
-        # バックアップを作成
-        backup_success = create_backup(request.filepath)
+        # バックアップを作成（強制バックアップオプションを使用）
+        backup_success = create_backup(request.filepath, force=request.force_backup)
         if not backup_success:
             print("Warning: Backup creation failed, but continuing with file save")
         
