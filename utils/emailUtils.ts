@@ -60,7 +60,7 @@ export const saveOutlookEmail = async (
   currentPath: string
 ): Promise<EmailSaveResponse> => {
   try {
-    const response = await fetch('http://localhost:8000/api/save-email', {
+    const response = await fetch(`http://${window.location.hostname}:8008/api/save-email`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -100,7 +100,7 @@ export const uploadEmailFile = async (
     formData.append('current_path', currentPath);
     formData.append('file_type', 'email');
 
-    const response = await fetch('http://localhost:8000/api/upload-files', {
+    const response = await fetch(`http://${window.location.hostname}:8008/api/upload-files`, {
       method: 'POST',
       body: formData
     });

@@ -32,7 +32,15 @@ export const getFilePathFromUrl = (): string | null => {
   }
 };
 
-const API_BASE_URL = 'http://localhost:8000';
+const getApiBaseUrl = (): string => {
+  // 現在のホストを取得し、バックエンドポート(8008)を使用
+  const currentHost = window.location.hostname;
+  const baseUrl = `http://${currentHost}:8008`;
+  console.log(`[DEBUG] API Base URL: ${baseUrl} (hostname: ${currentHost})`);
+  return baseUrl;
+};
+
+const API_BASE_URL = getApiBaseUrl();
 
 export const loadExcalidrawFile = async (filePath: string): Promise<{ data: ExcalidrawFileData; modified: number } | null> => {
   try {
@@ -77,7 +85,12 @@ export const getFileInfo = async (filePath: string): Promise<{ modified: number;
 
 export const saveExcalidrawFile = async (filePath: string, data: ExcalidrawFileData, forceBackup: boolean = false): Promise<boolean> => {
   try {
-    const response = await fetch(`${API_BASE_URL}/api/save-file`, {
+    const saveUrl = `${API_BASE_URL}/api/save-file`;
+    console.log(`[DEBUG] Saving file to: ${saveUrl}`);
+    console.log(`[DEBUG] File path: ${filePath}`);
+    console.log(`[DEBUG] Force backup: ${forceBackup}`);
+    
+    const response = await fetch(saveUrl, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -225,7 +238,8 @@ export const handleStickyNoteLink = (linkUrl: string): void => {
     } else {
       // Excalidraw以外のファイルは外部ファイルビューアーの/fullpathエンドポイントで開く
       // URLエンコードせずに、クエリパラメータとして直接渡す
-      const fileViewerUrl = `http://localhost:5001/fullpath?path=${linkUrl}`;
+      const currentHost = window.location.hostname;
+      const fileViewerUrl = `http://${currentHost}:5001/fullpath?path=${linkUrl}`;
       window.open(fileViewerUrl, '_blank');
     }
   } catch (error) {

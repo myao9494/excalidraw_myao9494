@@ -78,10 +78,10 @@ export const convertToWebURL = (filePath: string): string => {
   
   if (uploadsIndex !== -1) {
     const relativePath = filePath.substring(uploadsIndex);
-    return `http://localhost:8000/api/file/${relativePath}`;
+    return `http://${window.location.hostname}:8008/api/file/${relativePath}`;
   } else if (uploadLocalIndex !== -1) {
     const relativePath = filePath.substring(uploadLocalIndex);
-    return `http://localhost:8000/api/file/${relativePath}`;
+    return `http://${window.location.hostname}:8008/api/file/${relativePath}`;
   } else {
     return filePath; // uploads/upload_local が含まれていない場合はそのまま返す
   }

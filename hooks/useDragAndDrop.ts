@@ -107,7 +107,7 @@ export const useDragAndDrop = ({
       formData.append('files', file);
       formData.append('current_path', filePath);
 
-      const response = await fetch('http://localhost:8000/api/upload-files', {
+      const response = await fetch(`http://${window.location.hostname}:8008/api/upload-files`, {
         method: 'POST',
         body: formData
       });
@@ -207,7 +207,7 @@ export const useDragAndDrop = ({
       formData.append('folder_path', entry.fullPath);
       formData.append('current_path', filePath);
 
-      const response = await fetch('http://localhost:8000/api/create-folder-shortcut', {
+      const response = await fetch(`http://${window.location.hostname}:8008/api/create-folder-shortcut`, {
         method: 'POST',
         body: formData
       });

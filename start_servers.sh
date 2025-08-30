@@ -10,10 +10,25 @@ echo "=== Excalidraw サーバー群の起動を開始します ==="
 # プロジェクトディレクトリに移動
 cd "$(dirname "$0")"
 
-# バックエンドサーバーの起動（port 8000）
-echo "バックエンドサーバーを起動中... (port 8000)"
+# 特定ポートを解放する関数
+free_port() {
+    local port=$1
+    local pids
+    pids=$(lsof -ti tcp:$port 2>/dev/null || true)
+    if [ -n "$pids" ]; then
+        echo "Port $port を使用しているプロセスを終了します..."
+        echo "$pids" | xargs -r kill -9
+    fi
+}
+
+# 使用ポートの事前解放
+free_port 8008
+free_port 3001
+
+# バックエンドサーバーの起動（port 8008）
+echo "バックエンドサーバーを起動中... (port 8008)"
 cd backend
-python -m uvicorn main:app --reload --host 0.0.0.0 --port 8000 &
+python -m uvicorn main:app --reload --host 0.0.0.0 --port 8008 &
 BACKEND_PID=$!
 cd ..
 
@@ -40,7 +55,7 @@ trap cleanup SIGINT SIGTERM
 echo ""
 echo "=== サーバー起動完了 ==="
 echo "フロントエンド: http://localhost:3001"
-echo "バックエンド API: http://localhost:8000"
+echo "バックエンド API: http://localhost:8008"
 echo ""
 echo "※ オフライン環境対応: Python標準ライブラリのみ使用"
 echo "停止するには Ctrl+C を押してください"

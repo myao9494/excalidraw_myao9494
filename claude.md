@@ -76,9 +76,9 @@ pip install -r requirements.txt
 ### 2. Development Server Startup
 
 ```bash
-# Backend (port 8000)
+# Backend (port 8008)
 cd backend
-python -m uvicorn main:app --reload --host 0.0.0.0 --port 8000
+python -m uvicorn main:app --reload --host 0.0.0.0 --port 8008
 
 # Frontend (port 3001)
 npm start

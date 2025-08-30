@@ -13,12 +13,17 @@ from typing import Dict, List, Any, Optional
 
 app = FastAPI(title="Excalidraw File API")
 
-# CORS設定 - Tailscale VPN対応
+# CORS設定 - 開発環境と本番環境の両方に対応
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # VPNアクセス用に全許可
+    allow_origins=[
+        "http://localhost:3001",
+        "http://127.0.0.1:3001", 
+        "http://0.0.0.0:3001",
+        "*"  # 開発時の柔軟性のため
+    ],
     allow_credentials=True,
-    allow_methods=["*"],
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     allow_headers=["*"],
 )
 
@@ -544,4 +549,4 @@ async def serve_uploaded_file(file_path: str):
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    uvicorn.run(app, host="0.0.0.0", port=8008)

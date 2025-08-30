@@ -76,7 +76,8 @@ const showOpenFileDialog = (currentFolder: string | null) => {
   let folderPath = currentFolder ? normalizePath(currentFolder) : '.';
   
   // URLを手動で構築
-  const baseUrl = 'http://localhost:5001';
+  const currentHost = window.location.hostname;
+  const baseUrl = `http://${currentHost}:5001`;
   const encodedPath = encodeURIComponent(folderPath);
   const filterParam = 'filter=md,svg,csv,pdf,ipynb,py,docx,xlsx,xlsm,pptx,msg,lnk,excalidraw,excalidraw.svg,excalidraw.png';
   const fileViewerUrl = `${baseUrl}/fullpath?path=${encodedPath}&${filterParam}`;
@@ -93,7 +94,8 @@ const openInCode = async (currentFolder: string | null) => {
   let folderPath = currentFolder ? normalizePath(currentFolder) : '.';
   
   try {
-    const response = await fetch('http://localhost:5001/open-in-code2', {
+    const currentHost = window.location.hostname;
+    const response = await fetch(`http://${currentHost}:5001/open-in-code2`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -257,7 +259,8 @@ export default function ExampleApp({
     if (filePath) {
       // Excalidrawファイル以外の場合はfile viewerを新しいタブで開く
       if (!filePath.toLowerCase().endsWith('.excalidraw')) {
-        const fileViewerUrl = `http://localhost:5001/fullpath?path=${filePath}`;
+        const currentHost = window.location.hostname;
+        const fileViewerUrl = `http://${currentHost}:5001/fullpath?path=${filePath}`;
         window.open(fileViewerUrl, '_blank');
         // URLパラメータをクリアして元の状態に戻す
         window.history.replaceState({}, document.title, window.location.pathname);
@@ -781,7 +784,7 @@ export default function ExampleApp({
         libraryItems
       };
       
-      const response = await fetch('http://localhost:8000/save-library', {
+      const response = await fetch(`http://${window.location.hostname}:8008/save-library`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
