@@ -42,6 +42,162 @@ const getApiBaseUrl = (): string => {
 
 const API_BASE_URL = getApiBaseUrl();
 
+const SVG_NS = 'http://www.w3.org/2000/svg';
+
+const isTransparentFill = (shape: SVGGraphicsElement): boolean => {
+  const fill = shape.getAttribute('fill');
+  if (!fill || fill === 'none') {
+    return true;
+  }
+
+  const fillOpacityAttr = shape.getAttribute('fill-opacity');
+  const opacityAttr = shape.getAttribute('opacity');
+
+  let fillOpacity = fillOpacityAttr !== null ? parseFloat(fillOpacityAttr) : 1;
+  let opacity = opacityAttr !== null ? parseFloat(opacityAttr) : 1;
+
+  if (Number.isNaN(fillOpacity)) {
+    fillOpacity = 1;
+  }
+  if (Number.isNaN(opacity)) {
+    opacity = 1;
+  }
+
+  return fillOpacity * opacity === 0;
+};
+
+const mergeAdjacentTextAnchors = (svg: SVGSVGElement): void => {
+  const anchors = Array.from(svg.querySelectorAll<SVGAElement>('a[href]'));
+
+  const isTextGroup = (element: Element | null): element is SVGGElement => {
+    return element instanceof SVGGElement && !!element.querySelector('text');
+  };
+
+  anchors.forEach(anchor => {
+    if (anchor.querySelector('text')) {
+      return;
+    }
+
+    const href = anchor.getAttribute('href');
+    if (!href) {
+      return;
+    }
+
+    let sibling = anchor.nextElementSibling;
+    while (sibling) {
+      if (sibling instanceof SVGAElement) {
+        if (sibling.getAttribute('href') !== href) {
+          break;
+        }
+
+        const textGroup = Array.from(sibling.children).find(child => child instanceof SVGGElement) as SVGGElement | undefined;
+        if (textGroup && textGroup.querySelector('text')) {
+          anchor.appendChild(textGroup);
+        }
+
+        const remainingChildren = sibling.childNodes.length;
+        sibling.remove();
+
+        if (remainingChildren === 0) {
+          break;
+        }
+
+        sibling = anchor.nextElementSibling;
+        continue;
+      }
+
+      if (isTextGroup(sibling)) {
+        anchor.appendChild(sibling);
+        sibling = anchor.nextElementSibling;
+        continue;
+      }
+
+      break;
+    }
+  });
+};
+
+const addClickableOverlays = (svg: SVGSVGElement): void => {
+  if (typeof document === 'undefined' || !document.body) {
+    return;
+  }
+
+  const anchors = Array.from(svg.querySelectorAll<SVGAElement>('a[href]'));
+  if (anchors.length === 0) {
+    return;
+  }
+
+  const tempContainer = document.createElement('div');
+  tempContainer.style.position = 'absolute';
+  tempContainer.style.width = '0';
+  tempContainer.style.height = '0';
+  tempContainer.style.overflow = 'hidden';
+  tempContainer.style.opacity = '0';
+  tempContainer.style.pointerEvents = 'none';
+  document.body.appendChild(tempContainer);
+
+  const originalParent = svg.parentNode;
+  tempContainer.appendChild(svg);
+
+  anchors.forEach(anchor => {
+    if (anchor.querySelector(':scope > rect[data-excalidraw-overlay="true"]')) {
+      return;
+    }
+
+    const hasText = !!anchor.querySelector('text');
+    const shapes = Array.from(anchor.querySelectorAll<SVGGraphicsElement>('path, rect, ellipse, circle, polygon, polyline'));
+    const needsOverlay = hasText || shapes.some(isTransparentFill);
+
+    if (!needsOverlay) {
+      return;
+    }
+
+    let bbox: DOMRect;
+    try {
+      bbox = anchor.getBBox();
+    } catch (error) {
+      return;
+    }
+
+    if (!bbox.width || !bbox.height) {
+      return;
+    }
+
+    const overlay = svg.ownerDocument.createElementNS(SVG_NS, 'rect');
+    overlay.setAttribute('x', bbox.x.toString());
+    overlay.setAttribute('y', bbox.y.toString());
+    overlay.setAttribute('width', bbox.width.toString());
+    overlay.setAttribute('height', bbox.height.toString());
+    overlay.setAttribute('fill', '#ffffff');
+    overlay.setAttribute('fill-opacity', '0');
+    overlay.setAttribute('stroke', 'none');
+    overlay.setAttribute('pointer-events', 'fill');
+    overlay.setAttribute('data-excalidraw-overlay', 'true');
+
+    const firstElementChild = anchor.firstElementChild;
+    if (firstElementChild && firstElementChild.tagName.toLowerCase() === 'mask') {
+      anchor.insertBefore(overlay, firstElementChild.nextSibling);
+    } else {
+      anchor.insertBefore(overlay, firstElementChild || null);
+    }
+  });
+
+  tempContainer.removeChild(svg);
+  if (originalParent instanceof Element) {
+    originalParent.appendChild(svg);
+  }
+  tempContainer.remove();
+};
+
+const enhanceSvgLinks = (svg: SVGSVGElement | null): void => {
+  if (!svg) {
+    return;
+  }
+
+  mergeAdjacentTextAnchors(svg);
+  addClickableOverlays(svg);
+};
+
 export const loadExcalidrawFile = async (filePath: string): Promise<{ data: ExcalidrawFileData; modified: number } | null> => {
   try {
     const response = await fetch(`${API_BASE_URL}/api/load-file?filepath=${encodeURIComponent(filePath)}`);
@@ -272,28 +428,54 @@ export const exportToSvgFile = async (
     }
 
     // 選択された要素がある場合はそれを使用、なければ全要素を使用
-    let elementsToExport = selectedElements && selectedElements.length > 0 ? selectedElements : elements;
-    
+    const baseElementsForExport = selectedElements && selectedElements.length > 0 ? selectedElements : elements;
+
     // 付箋のテキストが含まれるように、containerIdを持つテキスト要素も含める
+    let elementsToExport: NonDeletedExcalidrawElement[] = baseElementsForExport;
     if (selectedElements && selectedElements.length > 0) {
       const selectedIds = new Set(selectedElements.map(el => el.id));
-      const relatedTextElements = elements.filter(element => 
-        element.type === 'text' && 
-        element.containerId && 
+      const relatedTextElements = elements.filter(element =>
+        element.type === 'text' &&
+        element.containerId &&
         selectedIds.has(element.containerId)
       );
-      
+
       // 関連するテキスト要素を追加
-      elementsToExport = [...selectedElements, ...relatedTextElements.filter(textEl => 
-        !selectedIds.has(textEl.id)
-      )];
-      
-      console.log('Added related text elements:', relatedTextElements.length);
+      const additionalTextElements = relatedTextElements.filter(textEl => !selectedIds.has(textEl.id));
+      elementsToExport = [...selectedElements, ...additionalTextElements];
+
+      console.log('Added related text elements:', additionalTextElements.length);
     }
+
+    // エクスポート用にクローンを作成（オリジナルを汚さないため）
+    const elementsForSvg = elementsToExport.map(element => ({ ...element }));
+
+    // コンテナにリンクがある場合は、紐づくテキスト要素にも同じリンクを設定
+    const elementCloneMap = new Map(elementsForSvg.map(element => [element.id, element]));
+    const originalElementMap = new Map(elements.map(element => [element.id, element]));
+
+    elementsForSvg.forEach(clone => {
+      if (!clone.link) {
+        return;
+      }
+
+      const original = originalElementMap.get(clone.id);
+      if (!original) {
+        return;
+      }
+
+      const boundTexts = elements.filter(element => element.type === 'text' && element.containerId === original.id);
+      boundTexts.forEach(boundText => {
+        const textClone = elementCloneMap.get(boundText.id);
+        if (textClone && !textClone.link) {
+          textClone.link = clone.link;
+        }
+      });
+    });
 
     // SVGを生成（改善版）
     const svg = await exportToSvg({
-      elements: elementsToExport,
+      elements: elementsForSvg,
       appState: {
         ...appState,
         exportBackground: true,
@@ -312,12 +494,13 @@ export const exportToSvgFile = async (
     });
 
     // SVGをテキストとして取得
+    enhanceSvgLinks(svg);
     const svgString = new XMLSerializer().serializeToString(svg);
     
     // デバッグ用：SVG内容を確認
     console.log('Generated SVG contains font data:', svgString.includes('@font-face'));
-    console.log('Text elements count:', elementsToExport.filter(e => e.type === 'text').length);
-    console.log('Elements to export:', elementsToExport.length);
+    console.log('Text elements count:', elementsForSvg.filter(e => e.type === 'text').length);
+    console.log('Elements to export:', elementsForSvg.length);
 
     // ファイルパスを構築
     const normalizedFolder = currentFolder ? currentFolder.replace(/\\/g, '/') : '.';
