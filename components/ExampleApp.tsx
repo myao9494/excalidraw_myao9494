@@ -117,6 +117,45 @@ const openInCode = async (currentFolder: string | null) => {
   }
 };
 
+/**
+ * OSのファイルマネージャーでフォルダを開く
+ */
+const openInFileExplorer = async (currentFolder: string | null) => {
+  const folderPath = currentFolder ? normalizePath(currentFolder) : null;
+
+  if (!folderPath) {
+    alert('現在のフォルダが取得できません。ファイルを開いてからお試しください。');
+    return;
+  }
+
+  try {
+    const currentHost = window.location.hostname;
+    const response = await fetch(`http://${currentHost}:8008/api/open-folder`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        path: folderPath,
+      }),
+    });
+
+    const result = await response.json().catch(() => null);
+
+    if (!response.ok || !result?.success) {
+      const message = (result && (result.detail || result.error)) || 'フォルダを開くことができませんでした。';
+      console.error('フォルダを開く処理でエラー:', message);
+      alert(message);
+      return;
+    }
+
+    console.log('ファイルマネージャーでフォルダを開きました:', result.openedPath || folderPath);
+  } catch (error) {
+    console.error('フォルダを開く処理で例外が発生しました:', error);
+    alert('フォルダを開く処理でエラーが発生しました。詳細はコンソールを確認してください。');
+  }
+};
+
 
 export interface AppProps {
   appTitle: string;
@@ -877,6 +916,16 @@ export default function ExampleApp({
           >
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
               <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path>
+            </svg>
+          </button>
+          <button 
+            className="header-btn open-explorer-btn"
+            onClick={() => openInFileExplorer(getCurrentFolder())}
+            title="フォルダを開く"
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M3 7h5l2 3h11a1 1 0 0 1 1 1v7a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V9a2 2 0 0 1 2-2z" />
+              <polyline points="13 12 16 15 21 10" />
             </svg>
           </button>
           <button 

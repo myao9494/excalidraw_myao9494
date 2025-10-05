@@ -263,6 +263,12 @@ export const saveExcalidrawFile = async (filePath: string, data: ExcalidrawFileD
     }
     
     const result = await response.json();
+    if (!result?.success) {
+      const message = result?.message || 'File save skipped by server.';
+      console.warn('File save skipped:', message);
+      return false;
+    }
+    
     console.log('File saved successfully:', result.message);
     return true;
   } catch (error) {

@@ -6,8 +6,10 @@ from pydantic import BaseModel
 from pathlib import Path
 import json
 import os
+import sys
 import time
 import shutil
+import subprocess
 from datetime import datetime, timedelta
 from typing import Dict, List, Any, Optional
 
@@ -114,6 +116,14 @@ class SaveSvgRequest(BaseModel):
     filepath: str
     svg_content: str
 
+class OpenFolderRequest(BaseModel):
+    path: str
+
+class OpenFolderResponse(BaseModel):
+    success: bool
+    openedPath: Optional[str] = None
+    error: Optional[str] = None
+
 def create_backup(filepath: str, force: bool = False) -> bool:
     """
     バックアップシステム
@@ -214,10 +224,29 @@ def create_backup(filepath: str, force: bool = False) -> bool:
             print(f"Backup created: {backup_path}")
         
         return True
-        
+
     except Exception as e:
         print(f"Error creating backup: {e}")
         return False
+
+
+def has_meaningful_content(file_data: Dict[str, Any]) -> bool:
+    """保存対象に有効なコンテンツが含まれているかを判定"""
+    if not file_data:
+        return False
+
+    elements = file_data.get("elements") or []
+    for element in elements:
+        if not isinstance(element, dict):
+            continue
+        if not element.get("isDeleted", False):
+            return True
+
+    files = file_data.get("files") or {}
+    if isinstance(files, dict) and len(files) > 0:
+        return True
+
+    return False
 
 def get_upload_directory(file_path: str, file_type: str = "general") -> Path:
     """アップロードディレクトリを取得/作成"""
@@ -330,19 +359,36 @@ async def get_file_info(filepath: str):
 async def save_file(request: SaveFileRequest):
     try:
         file_path = Path(request.filepath)
-        
+
+        data_to_save = request.data.dict()
+        if not has_meaningful_content(data_to_save):
+            existing_has_content = False
+            if file_path.exists():
+                try:
+                    with open(file_path, 'r', encoding='utf-8') as existing_file:
+                        existing_data = json.load(existing_file)
+                        existing_has_content = has_meaningful_content(existing_data)
+                except Exception as exc:
+                    print(f"Warning: Failed to inspect existing file for content: {exc}")
+
+            message = "保存対象のデータが空のため保存をスキップしました。"
+            if existing_has_content:
+                message += " 既存のファイルは変更されていません。"
+
+            return {"success": False, "message": message}
+
         # ディレクトリが存在しない場合は作成
         file_path.parent.mkdir(parents=True, exist_ok=True)
-        
+
         # バックアップを作成（強制バックアップオプションを使用）
         backup_success = create_backup(request.filepath, force=request.force_backup)
         if not backup_success:
             print("Warning: Backup creation failed, but continuing with file save")
-        
+
         # ファイルに保存
         with open(file_path, 'w', encoding='utf-8') as f:
-            json.dump(request.data.dict(), f, ensure_ascii=False, indent=2)
-        
+            json.dump(data_to_save, f, ensure_ascii=False, indent=2)
+
         return {"success": True, "message": f"File saved to {request.filepath}"}
     
     except Exception as e:
@@ -508,6 +554,41 @@ async def save_svg(request: SaveSvgRequest):
     except Exception as e:
         print(f"Error saving SVG file: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Error saving SVG file: {str(e)}")
+
+# フォルダをOSのファイルマネージャーで開く
+@app.post("/api/open-folder", response_model=OpenFolderResponse)
+async def open_folder(request: OpenFolderRequest):
+    try:
+        if not request.path:
+            raise HTTPException(status_code=400, detail="Folder path is required")
+
+        target_path = Path(request.path).expanduser()
+
+        # ファイルが指定された場合は親ディレクトリを対象にする
+        if target_path.is_file():
+            target_path = target_path.parent
+
+        if not target_path.exists():
+            raise HTTPException(status_code=404, detail="Folder not found")
+
+        resolved_path = target_path.resolve()
+
+        if sys.platform.startswith("win"):
+            subprocess.Popen(["explorer", str(resolved_path)])
+        elif sys.platform == "darwin":
+            subprocess.Popen(["open", str(resolved_path)])
+        else:
+            subprocess.Popen(["xdg-open", str(resolved_path)])
+
+        return OpenFolderResponse(success=True, openedPath=str(resolved_path))
+
+    except HTTPException:
+        raise
+    except FileNotFoundError:
+        raise HTTPException(status_code=404, detail="Folder not found")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error opening folder: {str(e)}")
+
 
 # 静的ファイル配信の設定
 @app.get("/api/file/{file_path:path}")
