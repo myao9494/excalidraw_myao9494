@@ -5,6 +5,7 @@ import React, {
   Children,
   cloneElement,
   useCallback,
+  useMemo,
 } from "react";
 
 import type * as TExcalidraw from "@excalidraw/excalidraw";
@@ -65,6 +66,67 @@ const showNewFileDialog = (currentFolder: string | null) => {
  */
 const normalizePath = (path: string): string => {
   return path.replace(/\\/g, '/');
+};
+
+
+interface DirectoryBrowserEntry {
+  name: string;
+  path: string;
+  isDir: boolean;
+  size?: number | null;
+  modified?: number | null;
+}
+
+
+const formatModified = (value: number | null | undefined): string => {
+  if (value == null) {
+    return '';
+  }
+  const date = new Date(value * 1000);
+  if (Number.isNaN(date.getTime())) {
+    return '';
+  }
+  return date.toLocaleString('ja-JP', {
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+};
+
+const formatSize = (value: number | null | undefined): string => {
+  if (value == null) {
+    return '';
+  }
+  if (value < 1024) {
+    return `${value} バイト`;
+  }
+  const kb = value / 1024;
+  if (kb < 1024) {
+    return `${Math.round(kb)} KB`;
+  }
+  const mb = kb / 1024;
+  if (mb < 1024) {
+    return `${mb.toFixed(1)} MB`;
+  }
+  const gb = mb / 1024;
+  return `${gb.toFixed(1)} GB`;
+};
+
+const getTypeLabel = (entry: DirectoryBrowserEntry): string => {
+  if (entry.isDir) {
+    return 'ファイル フォルダー';
+  }
+  const parts = entry.name.split('.');
+  if (parts.length > 1) {
+    const ext = parts.pop() || '';
+    if (ext.toLowerCase() === 'excalidraw') {
+      return 'EXCALIDRAW ファイル (.excalidraw)';
+    }
+    return `${ext.toUpperCase()} ファイル`;
+  }
+  return 'ファイル';
 };
 
 
@@ -194,7 +256,14 @@ export default function ExampleApp({
   const [lastSavedElements, setLastSavedElements] = useState<string>('');
   const [lastFileModified, setLastFileModified] = useState<number>(0);
   const [saveNotification, setSaveNotification] = useState<{message: string; isError?: boolean} | null>(null);
-  const [isOpeningFile, setIsOpeningFile] = useState<boolean>(false);
+  const [isFileBrowserOpen, setIsFileBrowserOpen] = useState<boolean>(false);
+  const [isFileBrowserLoading, setIsFileBrowserLoading] = useState<boolean>(false);
+  const [fileBrowserEntries, setFileBrowserEntries] = useState<DirectoryBrowserEntry[]>([]);
+  const [fileBrowserPath, setFileBrowserPath] = useState<string | null>(null);
+  const [fileBrowserParentPath, setFileBrowserParentPath] = useState<string | null>(null);
+  const [fileBrowserError, setFileBrowserError] = useState<string | null>(null);
+  const [fileBrowserSelectedEntry, setFileBrowserSelectedEntry] = useState<DirectoryBrowserEntry | null>(null);
+  const [fileBrowserInputValue, setFileBrowserInputValue] = useState<string>('');
   
   // 保存通知を表示する関数
   const showSaveNotification = useCallback((message: string, isError: boolean = false) => {
@@ -222,9 +291,176 @@ export default function ExampleApp({
     console.log('  Normalized path:', normalizedPath);
     console.log('  Last slash index:', lastSlashIndex);
     console.log('  Result folder path:', result);
-    
+
     return result;
   }, [currentFilePath]);
+
+  const fetchDirectoryContents = useCallback(async (targetPath: string | null) => {
+    setIsFileBrowserLoading(true);
+    setFileBrowserError(null);
+
+    try {
+      const currentHost = window.location.hostname || "localhost";
+      const response = await fetch(`http://${currentHost}:8008/api/list-directory`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          path: targetPath ?? undefined,
+        }),
+      });
+
+      const result = await response.json().catch(() => null);
+
+      if (!response.ok || !result?.success) {
+        const message = result?.error || result?.detail || 'ディレクトリ情報の取得に失敗しました。';
+        throw new Error(message);
+      }
+
+      const entriesArray = Array.isArray(result.entries) ? result.entries : [];
+      const mappedEntries: DirectoryBrowserEntry[] = entriesArray.map((entry: any) => ({
+        name: entry.name,
+        path: entry.path,
+        isDir: Boolean(entry.is_dir ?? entry.isDir),
+        size: entry.size ?? null,
+        modified: entry.modified ?? null,
+      }));
+
+      const filteredEntries = mappedEntries.filter((entry) => {
+        if (entry.isDir) {
+          return true;
+        }
+        return entry.name.toLowerCase().endsWith('.excalidraw');
+      });
+
+      setFileBrowserEntries(filteredEntries);
+      setFileBrowserPath(result.path ? normalizePath(result.path) : targetPath ? normalizePath(targetPath) : null);
+      setFileBrowserParentPath(result.parentPath ? normalizePath(result.parentPath) : null);
+      setFileBrowserSelectedEntry(null);
+      setFileBrowserInputValue('');
+    } catch (error) {
+      console.error('Error fetching directory contents:', error);
+      setFileBrowserError(error instanceof Error ? error.message : 'ディレクトリ情報の取得に失敗しました。');
+    } finally {
+      setIsFileBrowserLoading(false);
+    }
+  }, []);
+
+  const openFileBrowser = useCallback(() => {
+    if (isFileBrowserOpen) {
+      return;
+    }
+
+    const startPath = getCurrentFolder();
+    setIsFileBrowserOpen(true);
+    setFileBrowserSelectedEntry(null);
+    setFileBrowserInputValue('');
+    fetchDirectoryContents(startPath);
+  }, [fetchDirectoryContents, getCurrentFolder, isFileBrowserOpen]);
+
+  const closeFileBrowser = useCallback(() => {
+    setIsFileBrowserOpen(false);
+    setFileBrowserError(null);
+    setFileBrowserSelectedEntry(null);
+    setFileBrowserInputValue('');
+  }, []);
+
+  const openFileFromBrowser = useCallback((rawPath: string) => {
+    const normalizedPath = normalizePath(rawPath);
+    const currentHost = window.location.hostname || "localhost";
+    const targetUrl = `http://${currentHost}:3001/?filepath=${normalizedPath}`;
+    window.open(targetUrl, '_blank', 'noopener');
+    closeFileBrowser();
+  }, [closeFileBrowser]);
+
+  const handleDirectoryNavigate = useCallback((nextPath: string | null) => {
+    if (!nextPath) {
+      return;
+    }
+    fetchDirectoryContents(nextPath);
+  }, [fetchDirectoryContents]);
+
+  const handleFileBrowserConfirm = useCallback(() => {
+    const trimmedInput = fileBrowserInputValue.trim();
+    if (trimmedInput) {
+      const matchedEntry = fileBrowserEntries.find(
+        (entry) => entry.name.toLowerCase() === trimmedInput.toLowerCase(),
+      );
+      if (matchedEntry) {
+        if (matchedEntry.isDir) {
+          handleDirectoryNavigate(matchedEntry.path);
+        } else {
+          openFileFromBrowser(matchedEntry.path);
+        }
+        return;
+      }
+    }
+
+    if (fileBrowserSelectedEntry && !fileBrowserSelectedEntry.isDir) {
+      openFileFromBrowser(fileBrowserSelectedEntry.path);
+      return;
+    }
+
+    if (trimmedInput) {
+      setFileBrowserError(`ファイルが見つかりません: ${trimmedInput}`);
+    }
+  }, [
+    fileBrowserEntries,
+    fileBrowserInputValue,
+    fileBrowserSelectedEntry,
+    handleDirectoryNavigate,
+    openFileFromBrowser,
+  ]);
+
+  const handleEntryClick = useCallback((entry: DirectoryBrowserEntry) => {
+    setFileBrowserSelectedEntry(entry);
+    setFileBrowserError(null);
+    if (entry.isDir) {
+      setFileBrowserInputValue('');
+    } else {
+      setFileBrowserInputValue(entry.name);
+    }
+  }, []);
+
+  const handleEntryDoubleClick = useCallback((entry: DirectoryBrowserEntry) => {
+    if (entry.isDir) {
+      handleDirectoryNavigate(entry.path);
+    } else {
+      openFileFromBrowser(entry.path);
+    }
+  }, [handleDirectoryNavigate, openFileFromBrowser]);
+
+  const handleEntryKeyDown = useCallback(
+    (event: React.KeyboardEvent<HTMLButtonElement>, entry: DirectoryBrowserEntry) => {
+      if (event.key === 'Enter') {
+        event.preventDefault();
+        handleEntryDoubleClick(entry);
+      }
+    },
+    [handleEntryDoubleClick],
+  );
+
+  const displayPathValue = useMemo(() => {
+    if (!fileBrowserPath) {
+      return '';
+    }
+    const normalized = normalizePath(fileBrowserPath);
+    return normalized.replace(/\//g, '\\');
+  }, [fileBrowserPath]);
+
+  const openButtonDisabled = useMemo(() => {
+    if (isFileBrowserLoading) {
+      return true;
+    }
+    if (fileBrowserInputValue.trim()) {
+      return false;
+    }
+    if (fileBrowserSelectedEntry && !fileBrowserSelectedEntry.isDir) {
+      return false;
+    }
+    return true;
+  }, [fileBrowserInputValue, fileBrowserSelectedEntry, isFileBrowserLoading]);
   
   // SVGファイルとして保存する関数
   const exportSvg = useCallback(async (currentFolder: string | null) => {
@@ -317,43 +553,11 @@ export default function ExampleApp({
     document.title = tabTitle;
   }, [currentFilePath]);
 
-  const handleOpenFileButtonClick = useCallback(async () => {
-    if (isOpeningFile) {
-      return;
-    }
-
-    try {
-      setIsOpeningFile(true);
-      const currentHost = window.location.hostname || "localhost";
-      const currentFolder = getCurrentFolder();
-      const response = await fetch(`http://${currentHost}:8008/api/select-file`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          start_path: currentFolder ?? undefined,
-        }),
-      });
-
-      const result = await response.json().catch(() => null);
-
-      if (!response.ok || !result?.success || !result.filepath) {
-        const message = result?.error || result?.detail || 'ファイル選択に失敗しました。';
-        alert(message);
-        return;
-      }
-
-      const normalizedPath = normalizePath(result.filepath);
-      const targetUrl = `http://${currentHost}:3001/?filepath=${normalizedPath}`;
-      window.open(targetUrl, '_blank', 'noopener');
-    } catch (error) {
-      console.error('Error while opening file dialog:', error);
-      alert('ファイル選択処理でエラーが発生しました。詳細はコンソールを確認してください。');
-    } finally {
-      setIsOpeningFile(false);
-    }
-  }, [getCurrentFolder, isOpeningFile]);
+  const handleOpenFileButtonClick = useCallback((event: React.MouseEvent<HTMLButtonElement>) => {
+    event.preventDefault();
+    event.stopPropagation();
+    openFileBrowser();
+  }, [openFileBrowser]);
 
   useEffect(() => {
     if (!excalidrawAPI) {
@@ -945,14 +1149,10 @@ export default function ExampleApp({
           </button>
           <button
             className="header-btn open-file-btn"
-            onClick={(event) => {
-              event.preventDefault();
-              event.stopPropagation();
-              handleOpenFileButtonClick();
-            }}
+            onClick={handleOpenFileButtonClick}
             title="ファイルを開く"
             aria-label="ファイルを開く"
-            disabled={isOpeningFile}
+            disabled={isFileBrowserLoading || isFileBrowserOpen}
           >
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
               <path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h8" />
@@ -1026,6 +1226,169 @@ export default function ExampleApp({
           </button>
         </div>
       </div>
+
+      {isFileBrowserOpen && (
+        <div className="file-browser-overlay" onClick={closeFileBrowser}>
+          <div className="file-browser-window" onClick={(event) => event.stopPropagation()}>
+            <div className="file-browser-titlebar">
+              <span>開く</span>
+              <button
+                type="button"
+                className="file-browser-titlebar-close"
+                onClick={closeFileBrowser}
+                aria-label="ファイル選択を閉じる"
+              >
+                ×
+              </button>
+            </div>
+            <div className="file-browser-toolbar">
+              <div className="file-browser-toolbar-buttons">
+                <button
+                  type="button"
+                  title="上へ"
+                  onClick={() => handleDirectoryNavigate(fileBrowserParentPath)}
+                  disabled={!fileBrowserParentPath || isFileBrowserLoading}
+                  aria-label="親フォルダへ"
+                >
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <polyline points="7 11 12 6 17 11" />
+                    <line x1="12" y1="6" x2="12" y2="20" />
+                  </svg>
+                </button>
+                <button
+                  type="button"
+                  title="更新"
+                  onClick={() => fetchDirectoryContents(fileBrowserPath)}
+                  disabled={isFileBrowserLoading}
+                  aria-label="再読み込み"
+                >
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <polyline points="1 4 1 10 7 10" />
+                    <polyline points="23 20 23 14 17 14" />
+                    <path d="M20.49 9A9 9 0 0 0 6.83 5.17L1 10" />
+                    <path d="M3.51 15A9 9 0 0 0 17.17 18.83L23 14" />
+                  </svg>
+                </button>
+              </div>
+              <div className="file-browser-location">
+                <label htmlFor="file-browser-location-input">場所:</label>
+                <input
+                  id="file-browser-location-input"
+                  type="text"
+                  value={displayPathValue}
+                  readOnly
+                />
+              </div>
+            </div>
+            <div className="file-browser-content">
+              {fileBrowserError && (
+                <div className="file-browser-message error">{fileBrowserError}</div>
+              )}
+              <div className="file-browser-table">
+                <div className="file-browser-table-header">
+                  <span className="column name">名前</span>
+                  <span className="column modified">更新日時</span>
+                  <span className="column type">種類</span>
+                  <span className="column size">サイズ</span>
+                </div>
+                <div className="file-browser-table-body">
+                  {isFileBrowserLoading ? (
+                    <div className="file-browser-message">読み込み中...</div>
+                  ) : fileBrowserEntries.length === 0 ? (
+                    <div className="file-browser-message">このフォルダには項目がありません。</div>
+                  ) : (
+                    fileBrowserEntries.map((entry) => {
+                      const isSelected = fileBrowserSelectedEntry?.path === entry.path;
+                      const classNames = [
+                        'file-browser-row',
+                        entry.isDir ? 'is-dir' : 'is-file',
+                        isSelected ? 'is-selected' : '',
+                      ]
+                        .filter(Boolean)
+                        .join(' ');
+                      return (
+                        <button
+                          key={entry.path}
+                          type="button"
+                          className={classNames}
+                          onClick={() => handleEntryClick(entry)}
+                          onDoubleClick={() => handleEntryDoubleClick(entry)}
+                          onKeyDown={(event) => handleEntryKeyDown(event, entry)}
+                          aria-selected={isSelected}
+                        >
+                          <span className="column name" title={entry.name}>
+                            <svg
+                              className="entry-icon"
+                              width="18"
+                              height="18"
+                              viewBox="0 0 24 24"
+                              fill="none"
+                              stroke="currentColor"
+                              strokeWidth="2"
+                              aria-hidden="true"
+                            >
+                              {entry.isDir ? (
+                                <path d="M3 7h5l2 3h11a1 1 0 0 1 1 1v9a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2z" />
+                              ) : (
+                                <>
+                                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                                  <polyline points="14,2 14,8 20,8" />
+                                </>
+                              )}
+                            </svg>
+                            <span className="entry-name">{entry.name}</span>
+                          </span>
+                          <span className="column modified">
+                            {formatModified(entry.modified ?? null)}
+                          </span>
+                          <span className="column type">{getTypeLabel(entry)}</span>
+                          <span className="column size">{entry.isDir ? '' : formatSize(entry.size ?? null)}</span>
+                        </button>
+                      );
+                    })
+                  )}
+                </div>
+              </div>
+            </div>
+            <div className="file-browser-footer">
+              <div className="file-browser-field">
+                <label htmlFor="file-browser-file-name">ファイル名(N):</label>
+                <input
+                  id="file-browser-file-name"
+                  type="text"
+                  value={fileBrowserInputValue}
+                  onChange={(event) => {
+                    setFileBrowserInputValue(event.target.value);
+                    setFileBrowserError(null);
+                  }}
+                  onKeyDown={(event) => {
+                    if (event.key === 'Enter') {
+                      event.preventDefault();
+                      handleFileBrowserConfirm();
+                    }
+                  }}
+                  autoFocus
+                />
+              </div>
+              <div className="file-browser-field">
+                <label htmlFor="file-browser-file-type">ファイルの種類(T):</label>
+                <select id="file-browser-file-type" value="excalidraw" disabled>
+                  <option value="excalidraw">Excalidraw ファイル (*.excalidraw)</option>
+                  <option value="all">すべてのファイル (*.*)</option>
+                </select>
+              </div>
+              <div className="file-browser-footer-buttons">
+                <button type="button" onClick={handleFileBrowserConfirm} disabled={openButtonDisabled}>
+                  開く(O)
+                </button>
+                <button type="button" onClick={closeFileBrowser}>
+                  キャンセル
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
       <div className="excalidraw-wrapper" ref={containerRef}>
         {renderExcalidraw(children)}
       </div>

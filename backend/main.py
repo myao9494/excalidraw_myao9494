@@ -2,7 +2,7 @@ from fastapi import FastAPI, HTTPException, UploadFile, File, Form
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from pathlib import Path
 import json
 import os
@@ -124,63 +124,25 @@ class OpenFolderResponse(BaseModel):
     openedPath: Optional[str] = None
     error: Optional[str] = None
 
-class OpenFileDialogRequest(BaseModel):
-    start_path: Optional[str] = None
+class ListDirectoryRequest(BaseModel):
+    path: Optional[str] = None
+    show_hidden: bool = False
 
-class OpenFileDialogResponse(BaseModel):
+
+class DirectoryEntry(BaseModel):
+    name: str
+    path: str
+    is_dir: bool
+    size: Optional[int] = None
+    modified: Optional[float] = None
+
+
+class ListDirectoryResponse(BaseModel):
     success: bool
-    filepath: Optional[str] = None
+    path: str
+    parentPath: Optional[str] = None
+    entries: List[DirectoryEntry] = Field(default_factory=list)
     error: Optional[str] = None
-
-
-class FileSelectionCancelled(Exception):
-    """Raised when the user cancels the file selection dialog."""
-    pass
-
-
-def _escape_applescript_string(value: str) -> str:
-    return value.replace("\\", "\\\\").replace('"', '\\"')
-
-
-def open_file_dialog(default_path: Optional[str] = None) -> str:
-    """Open a native file selection dialog and return the chosen file path."""
-    normalized_default = None
-    if default_path:
-        try:
-            normalized_default = str(Path(default_path).expanduser().resolve())
-        except Exception:
-            normalized_default = None
-
-    if sys.platform == "darwin":
-        script_lines = [
-            'set frontApp to path to frontmost application as text',
-            'tell application frontApp to activate'
-        ]
-
-        if normalized_default:
-            escaped_default = _escape_applescript_string(normalized_default)
-            script_lines.append(f'set defaultLocation to POSIX file "{escaped_default}"')
-            script_lines.append('set chosenFile to choose file with prompt "開くファイルを選択してください" default location defaultLocation')
-        else:
-            script_lines.append('set chosenFile to choose file with prompt "開くファイルを選択してください"')
-
-        script_lines.append('POSIX path of chosenFile')
-
-        args = ["osascript"]
-        for line in script_lines:
-            args.extend(["-e", line])
-
-        result = subprocess.run(args, capture_output=True, text=True)
-
-        if result.returncode != 0:
-            stderr = (result.stderr or "").strip()
-            if "User canceled" in stderr or result.returncode == 1:
-                raise FileSelectionCancelled()
-            raise RuntimeError(stderr or "Failed to open file dialog")
-
-        return result.stdout.strip()
-
-    raise RuntimeError("ファイルダイアログは現在のプラットフォームではサポートされていません。")
 
 def create_backup(filepath: str, force: bool = False) -> bool:
     """
@@ -648,17 +610,63 @@ async def open_folder(request: OpenFolderRequest):
         raise HTTPException(status_code=500, detail=f"Error opening folder: {str(e)}")
 
 
-@app.post("/api/select-file", response_model=OpenFileDialogResponse)
-async def select_file(request: OpenFileDialogRequest):
+@app.post("/api/list-directory", response_model=ListDirectoryResponse)
+async def list_directory(request: ListDirectoryRequest):
     try:
-        selected_path = open_file_dialog(request.start_path)
-        return OpenFileDialogResponse(success=True, filepath=str(Path(selected_path)))
-    except FileSelectionCancelled:
-        return OpenFileDialogResponse(success=False, error="ファイル選択がキャンセルされました。")
-    except RuntimeError as e:
-        raise HTTPException(status_code=501, detail=str(e))
+        target_path = Path(request.path).expanduser() if request.path else Path.cwd()
+        if not target_path.exists():
+            raise HTTPException(status_code=404, detail="Directory not found")
+        if not target_path.is_dir():
+            raise HTTPException(status_code=400, detail="Target path is not a directory")
+
+        resolved_path = target_path.resolve()
+        entries: List[DirectoryEntry] = []
+
+        for entry in resolved_path.iterdir():
+            if not request.show_hidden and entry.name.startswith('.'):
+                continue
+
+            try:
+                is_dir = entry.is_dir()
+            except (PermissionError, FileNotFoundError):
+                continue
+
+            if not is_dir:
+                name_lower = entry.name.lower()
+                if not name_lower.endswith('.excalidraw'):
+                    continue
+
+            try:
+                stat = entry.stat()
+            except (PermissionError, FileNotFoundError):
+                continue
+
+            entries.append(
+                DirectoryEntry(
+                    name=entry.name,
+                    path=str(entry.resolve()),
+                    is_dir=is_dir,
+                    size=None if is_dir else stat.st_size,
+                    modified=stat.st_mtime,
+                )
+            )
+
+        entries.sort(key=lambda item: (not item.is_dir, item.name.lower()))
+
+        parent_path = None
+        if resolved_path.parent != resolved_path:
+            parent_path = str(resolved_path.parent)
+
+        return ListDirectoryResponse(
+            success=True,
+            path=str(resolved_path),
+            parentPath=parent_path,
+            entries=entries,
+        )
+    except HTTPException:
+        raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error selecting file: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Error listing directory: {str(e)}")
 
 
 # 静的ファイル配信の設定
