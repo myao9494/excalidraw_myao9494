@@ -194,6 +194,7 @@ export default function ExampleApp({
   const [lastSavedElements, setLastSavedElements] = useState<string>('');
   const [lastFileModified, setLastFileModified] = useState<number>(0);
   const [saveNotification, setSaveNotification] = useState<{message: string; isError?: boolean} | null>(null);
+  const [isOpeningFile, setIsOpeningFile] = useState<boolean>(false);
   
   // 保存通知を表示する関数
   const showSaveNotification = useCallback((message: string, isError: boolean = false) => {
@@ -202,7 +203,7 @@ export default function ExampleApp({
       setSaveNotification(null);
     }, 2000);
   }, []);
-  
+
   // 現在のフォルダパスを取得する関数（Windows/Unix両対応）
   const getCurrentFolder = useCallback(() => {
     if (!currentFilePath) {
@@ -315,6 +316,44 @@ export default function ExampleApp({
     const tabTitle = generateTabTitle(currentFilePath);
     document.title = tabTitle;
   }, [currentFilePath]);
+
+  const handleOpenFileButtonClick = useCallback(async () => {
+    if (isOpeningFile) {
+      return;
+    }
+
+    try {
+      setIsOpeningFile(true);
+      const currentHost = window.location.hostname || "localhost";
+      const currentFolder = getCurrentFolder();
+      const response = await fetch(`http://${currentHost}:8008/api/select-file`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          start_path: currentFolder ?? undefined,
+        }),
+      });
+
+      const result = await response.json().catch(() => null);
+
+      if (!response.ok || !result?.success || !result.filepath) {
+        const message = result?.error || result?.detail || 'ファイル選択に失敗しました。';
+        alert(message);
+        return;
+      }
+
+      const normalizedPath = normalizePath(result.filepath);
+      const targetUrl = `http://${currentHost}:3001/?filepath=${normalizedPath}`;
+      window.open(targetUrl, '_blank', 'noopener');
+    } catch (error) {
+      console.error('Error while opening file dialog:', error);
+      alert('ファイル選択処理でエラーが発生しました。詳細はコンソールを確認してください。');
+    } finally {
+      setIsOpeningFile(false);
+    }
+  }, [getCurrentFolder, isOpeningFile]);
 
   useEffect(() => {
     if (!excalidrawAPI) {
@@ -902,6 +941,24 @@ export default function ExampleApp({
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
               <line x1="12" y1="5" x2="12" y2="19"></line>
               <line x1="5" y1="12" x2="19" y2="12"></line>
+            </svg>
+          </button>
+          <button
+            className="header-btn open-file-btn"
+            onClick={(event) => {
+              event.preventDefault();
+              event.stopPropagation();
+              handleOpenFileButtonClick();
+            }}
+            title="ファイルを開く"
+            aria-label="ファイルを開く"
+            disabled={isOpeningFile}
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+              <path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h8" />
+              <polyline points="14 3 20 3 20 9" />
+              <path d="M15 13h6" />
+              <path d="M17.5 16.5 21 13 17.5 9.5" />
             </svg>
           </button>
           <button 

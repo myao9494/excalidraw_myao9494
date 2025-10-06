@@ -72,15 +72,26 @@
       transform: translateY(-1px);
       box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
     }
-    
+
     &:active {
       transform: translateY(0);
       box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
     }
-    
+
+    &:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+      transform: none;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+    }
+
     svg {
       pointer-events: none;
     }
+  }
+
+  .open-file-btn {
+    width: 36px;
   }
 }
 

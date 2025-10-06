@@ -124,6 +124,64 @@ class OpenFolderResponse(BaseModel):
     openedPath: Optional[str] = None
     error: Optional[str] = None
 
+class OpenFileDialogRequest(BaseModel):
+    start_path: Optional[str] = None
+
+class OpenFileDialogResponse(BaseModel):
+    success: bool
+    filepath: Optional[str] = None
+    error: Optional[str] = None
+
+
+class FileSelectionCancelled(Exception):
+    """Raised when the user cancels the file selection dialog."""
+    pass
+
+
+def _escape_applescript_string(value: str) -> str:
+    return value.replace("\\", "\\\\").replace('"', '\\"')
+
+
+def open_file_dialog(default_path: Optional[str] = None) -> str:
+    """Open a native file selection dialog and return the chosen file path."""
+    normalized_default = None
+    if default_path:
+        try:
+            normalized_default = str(Path(default_path).expanduser().resolve())
+        except Exception:
+            normalized_default = None
+
+    if sys.platform == "darwin":
+        script_lines = [
+            'set frontApp to path to frontmost application as text',
+            'tell application frontApp to activate'
+        ]
+
+        if normalized_default:
+            escaped_default = _escape_applescript_string(normalized_default)
+            script_lines.append(f'set defaultLocation to POSIX file "{escaped_default}"')
+            script_lines.append('set chosenFile to choose file with prompt "開くファイルを選択してください" default location defaultLocation')
+        else:
+            script_lines.append('set chosenFile to choose file with prompt "開くファイルを選択してください"')
+
+        script_lines.append('POSIX path of chosenFile')
+
+        args = ["osascript"]
+        for line in script_lines:
+            args.extend(["-e", line])
+
+        result = subprocess.run(args, capture_output=True, text=True)
+
+        if result.returncode != 0:
+            stderr = (result.stderr or "").strip()
+            if "User canceled" in stderr or result.returncode == 1:
+                raise FileSelectionCancelled()
+            raise RuntimeError(stderr or "Failed to open file dialog")
+
+        return result.stdout.strip()
+
+    raise RuntimeError("ファイルダイアログは現在のプラットフォームではサポートされていません。")
+
 def create_backup(filepath: str, force: bool = False) -> bool:
     """
     バックアップシステム
@@ -588,6 +646,19 @@ async def open_folder(request: OpenFolderRequest):
         raise HTTPException(status_code=404, detail="Folder not found")
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error opening folder: {str(e)}")
+
+
+@app.post("/api/select-file", response_model=OpenFileDialogResponse)
+async def select_file(request: OpenFileDialogRequest):
+    try:
+        selected_path = open_file_dialog(request.start_path)
+        return OpenFileDialogResponse(success=True, filepath=str(Path(selected_path)))
+    except FileSelectionCancelled:
+        return OpenFileDialogResponse(success=False, error="ファイル選択がキャンセルされました。")
+    except RuntimeError as e:
+        raise HTTPException(status_code=501, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error selecting file: {str(e)}")
 
 
 # 静的ファイル配信の設定
