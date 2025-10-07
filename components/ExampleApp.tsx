@@ -56,8 +56,9 @@ const showNewFileDialog = (currentFolder: string | null) => {
       ? `${normalizedFolder}/${fileName.trim()}.excalidraw`
       : `${fileName.trim()}.excalidraw`;
     
-    // 新しいファイルのURLにリダイレクト（パスをエンコードしない）
-    window.location.href = `${window.location.origin}${window.location.pathname}?filepath=${fullPath}`;
+    // 新しいファイルのURLにリダイレクト（パスをエンコードする）
+    const encodedPath = encodeURIComponent(fullPath);
+    window.location.href = `${window.location.origin}${window.location.pathname}?filepath=${encodedPath}`;
   }
 };
 
@@ -369,7 +370,8 @@ export default function ExampleApp({
   const openFileFromBrowser = useCallback((rawPath: string) => {
     const normalizedPath = normalizePath(rawPath);
     const currentHost = window.location.hostname || "localhost";
-    const targetUrl = `http://${currentHost}:3001/?filepath=${normalizedPath}`;
+    const encodedPath = encodeURIComponent(normalizedPath);
+    const targetUrl = `http://${currentHost}:3001/?filepath=${encodedPath}`;
     window.open(targetUrl, '_blank', 'noopener');
     closeFileBrowser();
   }, [closeFileBrowser]);
