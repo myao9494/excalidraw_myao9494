@@ -10,6 +10,7 @@ import sys
 import time
 import shutil
 import subprocess
+import mimetypes
 from datetime import datetime, timedelta
 from typing import Dict, List, Any, Optional
 
@@ -374,6 +375,35 @@ async def get_file_info(filepath: str):
         raise HTTPException(status_code=404, detail="File not found")
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error getting file info: {str(e)}")
+
+
+@app.get("/api/open-file")
+async def open_file(filepath: str):
+    """任意のファイルをバックエンド経由で配信"""
+    try:
+        import urllib.parse
+
+        decoded_filepath = urllib.parse.unquote_plus(filepath)
+        file_path = Path(decoded_filepath)
+
+        if not file_path.exists():
+            raise HTTPException(status_code=404, detail="File not found")
+
+        if file_path.is_dir():
+            raise HTTPException(status_code=400, detail="Path points to a directory")
+
+        guessed_type, _ = mimetypes.guess_type(str(file_path))
+        media_type = guessed_type or "application/octet-stream"
+
+        return FileResponse(
+            path=str(file_path),
+            filename=file_path.name,
+            media_type=media_type,
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error opening file: {str(e)}")
 
 @app.post("/api/save-file")
 async def save_file(request: SaveFileRequest):

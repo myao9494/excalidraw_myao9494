@@ -40,7 +40,17 @@ const getApiBaseUrl = (): string => {
   return baseUrl;
 };
 
-const API_BASE_URL = getApiBaseUrl();
+export const API_BASE_URL = getApiBaseUrl();
+
+const buildBackendFileUrl = (filePath: string): string => {
+  const encodedPath = encodeURIComponent(filePath);
+  return `${API_BASE_URL}/api/open-file?filepath=${encodedPath}`;
+};
+
+export const openFileViaBackend = (filePath: string): void => {
+  const targetUrl = buildBackendFileUrl(filePath);
+  window.open(targetUrl, '_blank');
+};
 
 const SVG_NS = 'http://www.w3.org/2000/svg';
 
@@ -398,11 +408,8 @@ export const handleStickyNoteLink = (linkUrl: string): void => {
       currentUrl.searchParams.set('filepath', linkUrl);
       window.location.href = currentUrl.toString();
     } else {
-      // Excalidraw以外のファイルは外部ファイルビューアーの/fullpathエンドポイントで開く
-      // URLエンコードせずに、クエリパラメータとして直接渡す
-      const currentHost = window.location.hostname;
-      const fileViewerUrl = `http://${currentHost}:5001/fullpath?path=${linkUrl}`;
-      window.open(fileViewerUrl, '_blank');
+      // Excalidraw以外のファイルはバックエンド経由で開く
+      openFileViaBackend(linkUrl);
     }
   } catch (error) {
     console.error('Error handling sticky note link:', error);

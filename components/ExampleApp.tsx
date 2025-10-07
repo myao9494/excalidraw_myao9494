@@ -36,6 +36,7 @@ import {
   saveExcalidrawFile,
   getFileInfo,
   handleStickyNoteLink,
+  openFileViaBackend,
   exportToSvgFile,
   type ExcalidrawFileData
 } from "../utils/fileUtils";
@@ -586,9 +587,7 @@ export default function ExampleApp({
     if (filePath) {
       // Excalidrawファイル以外の場合はfile viewerを新しいタブで開く
       if (!filePath.toLowerCase().endsWith('.excalidraw')) {
-        const currentHost = window.location.hostname;
-        const fileViewerUrl = `http://${currentHost}:5001/fullpath?path=${filePath}`;
-        window.open(fileViewerUrl, '_blank');
+        openFileViaBackend(filePath);
         // URLパラメータをクリアして元の状態に戻す
         window.history.replaceState({}, document.title, window.location.pathname);
         return;
