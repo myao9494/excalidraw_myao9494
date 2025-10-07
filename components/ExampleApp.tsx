@@ -500,6 +500,8 @@ export default function ExampleApp({
   // 最新の値を保持するためのref
   const currentFilePathRef = useRef<string | null>(null);
   const lastSavedElementsRef = useRef<string>('');
+  const lastFileModifiedRef = useRef<number>(0);
+  const externalUpdateNotifiedRef = useRef<number>(0);
   
   // refの値を更新
   useEffect(() => {
@@ -509,6 +511,53 @@ export default function ExampleApp({
   useEffect(() => {
     lastSavedElementsRef.current = lastSavedElements;
   }, [lastSavedElements]);
+
+  useEffect(() => {
+    lastFileModifiedRef.current = lastFileModified;
+  }, [lastFileModified]);
+
+  const buildElementSummary = useCallback(
+    (elements: NonDeletedExcalidrawElement[], deletedCount: number = 0) => {
+      const activeElements = elements.filter((el) => !el.isDeleted);
+      const summary = {
+        count: activeElements.length,
+        deletedCount,
+        ids: activeElements.map((el) => el.id).sort().join(','),
+        geometry: activeElements
+          .map(
+            (el) =>
+              `${el.id}:${Math.round(el.x)},${Math.round(el.y)},${Math.round(el.width)},${Math.round(el.height)},${Math.round(el.angle || 0)}`,
+          )
+          .sort()
+          .join('|'),
+        texts: activeElements
+          .filter((el) => el.type === 'text')
+          .map((el) => `${el.id}:${el.text || ''}`)
+          .sort()
+          .join('|'),
+        styles: activeElements
+          .map(
+            (el) =>
+              `${el.id}:${el.strokeColor},${el.backgroundColor},${el.fillStyle},${el.strokeWidth},${el.roughness},${el.opacity}`,
+          )
+          .sort()
+          .join('|'),
+        extras: activeElements
+          .map((el) => {
+            const extras: string[] = [];
+            if (el.type === 'arrow' && el.startArrowhead) extras.push(`start:${el.startArrowhead}`);
+            if (el.type === 'arrow' && el.endArrowhead) extras.push(`end:${el.endArrowhead}`);
+            if (el.link) extras.push(`link:${el.link}`);
+            if (el.groupIds && el.groupIds.length > 0) extras.push(`groups:${el.groupIds.join(',')}`);
+            return `${el.id}:${extras.join(';')}`;
+          })
+          .sort()
+          .join('|'),
+      };
+      return JSON.stringify(summary);
+    },
+    [],
+  );
   
   // ドラッグ&ドロップ用のコンテナRef
   const containerRef = useRef<HTMLDivElement>(null);
@@ -581,8 +630,15 @@ export default function ExampleApp({
           
           // ファイルの更新日時を記録
           setLastFileModified(modified);
+          lastFileModifiedRef.current = modified;
+          externalUpdateNotifiedRef.current = modified;
           // 初期読み込み時の要素を記録
-          setLastSavedElements(JSON.stringify(fileData.elements));
+          const initialSummary = buildElementSummary(
+            fileData.elements as NonDeletedExcalidrawElement[],
+            0,
+          );
+          setLastSavedElements(initialSummary);
+          lastSavedElementsRef.current = initialSummary;
         } else {
           // ファイルが存在しない場合は初期データを使用
           dataToLoad = {
@@ -591,20 +647,28 @@ export default function ExampleApp({
             appState: initialData.appState,
             files: {},
           };
-          setLastSavedElements(JSON.stringify([]));
+          const emptySummary = buildElementSummary([]);
+          setLastSavedElements(emptySummary);
+          lastSavedElementsRef.current = emptySummary;
         }
       } else {
         // ローカルストレージからデータを読み込み
         const savedElements = loadElementsFromLocalStorage();
         const savedAppState = loadAppStateFromLocalStorage();
         const savedFiles = loadBinaryFilesFromLocalStorage();
-        
+
         dataToLoad = {
           ...initialData,
           elements: savedElements.length > 0 ? savedElements : convertToExcalidrawElements(initialData.elements),
           appState: savedAppState ? { ...initialData.appState, ...savedAppState } : initialData.appState,
           files: savedFiles,
         };
+
+        const localSummary = buildElementSummary(
+          (savedElements as NonDeletedExcalidrawElement[]) || [],
+        );
+        setLastSavedElements(localSummary);
+        lastSavedElementsRef.current = localSummary;
       }
       
       // ライブラリファイルをロードしてlibraryItemsに追加
@@ -640,53 +704,7 @@ export default function ExampleApp({
     };
     
     loadData();
-  }, [excalidrawAPI, convertToExcalidrawElements, currentFilePath]);
-
-  // 定期的にファイルの更新日時をチェック
-  useEffect(() => {
-    if (!currentFilePath || !excalidrawAPI) {
-      return;
-    }
-
-    const checkFileUpdates = async () => {
-      try {
-        const fileInfo = await getFileInfo(currentFilePath);
-        if (fileInfo && fileInfo.exists && fileInfo.modified > lastFileModified) {
-          console.log('File was updated externally, reloading...');
-          
-          // ファイルを再読み込み
-          const fileResult = await loadExcalidrawFile(currentFilePath);
-          if (fileResult) {
-            const { data: fileData, modified } = fileResult;
-            
-            // Excalidraw APIを使用してシーンを更新
-            const newElements = fileData.elements.length > 0 ? fileData.elements : [];
-            const newAppState = fileData.appState ? { ...fileData.appState } : {};
-            const newFiles = fileData.files || {};
-            
-            excalidrawAPI.updateScene({
-              elements: newElements,
-              appState: newAppState,
-              files: newFiles,
-            });
-            
-            // 状態を更新
-            setLastFileModified(modified);
-            setLastSavedElements(JSON.stringify(fileData.elements));
-          }
-        }
-      } catch (error) {
-        console.error('Error checking file updates:', error);
-      }
-    };
-
-    // 5秒ごとにファイルの更新をチェック
-    const interval = setInterval(checkFileUpdates, 5000);
-
-    return () => {
-      clearInterval(interval);
-    };
-  }, [currentFilePath, excalidrawAPI, lastFileModified]);
+  }, [buildElementSummary, convertToExcalidrawElements, currentFilePath, excalidrawAPI]);
 
   // 最新値を保持するRef
   const lastSaveTimeRef = useRef<number>(0);
@@ -715,8 +733,6 @@ export default function ExampleApp({
     // 削除された要素の数をカウント
     const deletedCount = allElements.filter(el => el.isDeleted).length;
     const activeCount = elements.length;
-    const totalCount = activeCount + deletedCount;
-    
     // 削除された要素が検知された場合は即座に変更と判定
     if (deletedCount > 0) {
       console.log(`[Change Detection] Deleted elements detected: ${deletedCount} deleted, ${activeCount} active`);
@@ -730,35 +746,15 @@ export default function ExampleApp({
     }
 
     // 包括的な変更検知：すべての重要なプロパティを含む
-    const currentSummary = {
-      count: activeCount,
-      ids: elements.map(el => el.id).sort().join(','),
-      // 位置・サイズ・回転を1px/1度単位で検知
-      geometry: elements.map(el => `${el.id}:${Math.round(el.x)},${Math.round(el.y)},${Math.round(el.width)},${Math.round(el.height)},${Math.round(el.angle || 0)}`).sort().join('|'),
-      // テキスト内容の変更を検知
-      texts: elements.filter(el => el.type === 'text').map(el => `${el.id}:${el.text || ''}`).sort().join('|'),
-      // スタイル変更を検知（色、線の太さ、フィルなど）
-      styles: elements.map(el => `${el.id}:${el.strokeColor},${el.backgroundColor},${el.fillStyle},${el.strokeWidth},${el.roughness},${el.opacity}`).sort().join('|'),
-      // 矢印やリンクなどの追加プロパティ
-      extras: elements.map(el => {
-        const extras = [];
-        if (el.type === 'arrow' && el.startArrowhead) extras.push(`start:${el.startArrowhead}`);
-        if (el.type === 'arrow' && el.endArrowhead) extras.push(`end:${el.endArrowhead}`);
-        if (el.link) extras.push(`link:${el.link}`);
-        if (el.groupIds && el.groupIds.length > 0) extras.push(`groups:${el.groupIds.join(',')}`);
-        return `${el.id}:${extras.join(';')}`;
-      }).sort().join('|')
-    };
-    
-    const currentSummaryString = JSON.stringify(currentSummary);
+    const currentSummaryString = buildElementSummary(elements, deletedCount);
     const hasChanged = currentSummaryString !== lastSavedElementsRef.current;
-    
+
     if (hasChanged) {
       console.log(`[Change Detection] Detailed change detected`);
     }
-    
+
     return hasChanged;
-  }, [excalidrawAPI]);
+  }, [excalidrawAPI, buildElementSummary]);
 
   // デバウンス処理を行う保存関数（10秒間隔制限付き）
   const debouncedSave = useCallback((
@@ -830,12 +826,53 @@ export default function ExampleApp({
     }, 3000);
   }, [isSignificantChange, excalidrawAPI]);
 
+  const applyLoadedFile = useCallback(
+    (
+      fileData: ExcalidrawFileData,
+      modified: number,
+      notifyMessage?: string,
+    ) => {
+      if (!excalidrawAPI) {
+        return;
+      }
+
+      const newElements = fileData.elements && fileData.elements.length > 0 ? fileData.elements : [];
+      const newAppState = fileData.appState ? { ...fileData.appState } : {};
+      const newFiles = fileData.files || {};
+
+      excalidrawAPI.updateScene({
+        elements: newElements,
+        appState: newAppState,
+        files: newFiles,
+      });
+
+      const activeElements = excalidrawAPI.getSceneElements() as NonDeletedExcalidrawElement[];
+      const deletedElements = excalidrawAPI
+        .getSceneElementsIncludingDeleted()
+        ?.filter((el) => el.isDeleted).length || 0;
+
+      const summaryString = buildElementSummary(activeElements, deletedElements);
+      setLastSavedElements(summaryString);
+      lastSavedElementsRef.current = summaryString;
+
+      setLastFileModified(modified);
+      lastFileModifiedRef.current = modified;
+      externalUpdateNotifiedRef.current = modified;
+
+      if (notifyMessage) {
+        showSaveNotification(notifyMessage);
+      }
+    },
+    [buildElementSummary, excalidrawAPI, showSaveNotification],
+  );
+
   // 実際の保存処理を実行する関数
-  const performSave = useCallback((
+  const performSave = useCallback(async (
     elements: NonDeletedExcalidrawElement[],
     appState: any,
     files: any,
-    forceBackup: boolean = false
+    forceBackup: boolean = false,
+    skipConflictCheck: boolean = false
   ) => {
     const now = Date.now();
     
@@ -858,55 +895,82 @@ export default function ExampleApp({
 
     const currentFilePathValue = currentFilePathRef.current;
     if (currentFilePathValue) {
-      // 削除要素の情報も考慮した包括的な変更検知
       const allElements = excalidrawAPI?.getSceneElementsIncludingDeleted() || [];
-      const deletedCount = allElements.filter(el => el.isDeleted).length;
-      
-      const currentSummary = {
-        count: elements.length,
-        deletedCount: deletedCount,
-        ids: elements.map(el => el.id).sort().join(','),
-        // 位置・サイズ・回転を1px/1度単位で検知
-        geometry: elements.map(el => `${el.id}:${Math.round(el.x)},${Math.round(el.y)},${Math.round(el.width)},${Math.round(el.height)},${Math.round(el.angle || 0)}`).sort().join('|'),
-        // テキスト内容の変更を検知
-        texts: elements.filter(el => el.type === 'text').map(el => `${el.id}:${el.text || ''}`).sort().join('|'),
-        // スタイル変更を検知（色、線の太さ、フィルなど）
-        styles: elements.map(el => `${el.id}:${el.strokeColor},${el.backgroundColor},${el.fillStyle},${el.strokeWidth},${el.roughness},${el.opacity}`).sort().join('|'),
-        // 矢印やリンクなどの追加プロパティ
-        extras: elements.map(el => {
-          const extras = [];
-          if (el.type === 'arrow' && el.startArrowhead) extras.push(`start:${el.startArrowhead}`);
-          if (el.type === 'arrow' && el.endArrowhead) extras.push(`end:${el.endArrowhead}`);
-          if (el.link) extras.push(`link:${el.link}`);
-          if (el.groupIds && el.groupIds.length > 0) extras.push(`groups:${el.groupIds.join(',')}`);
-          return `${el.id}:${extras.join(';')}`;
-        }).sort().join('|')
-      };
-      const currentSummaryString = JSON.stringify(currentSummary);
-      
-      // 削除要素が存在する場合は常に保存を実行
-      if (deletedCount > 0 || currentSummaryString !== lastSavedElementsRef.current) {
-        // ファイルパスが指定されている場合はファイルに保存
+      const deletedCount = allElements.filter((el) => el.isDeleted).length;
+      const currentSummaryString = buildElementSummary(elements, deletedCount);
+      let latestRemoteModified = lastFileModifiedRef.current;
+      let shouldForceBackup = forceBackup;
+      let conflictOverwrite = false;
+
+      try {
+        const fileInfo = await getFileInfo(currentFilePathValue);
+        if (fileInfo?.exists) {
+          latestRemoteModified = fileInfo.modified;
+          const hasExternalUpdate =
+            fileInfo.modified > lastFileModifiedRef.current + 0.0001;
+
+          if (hasExternalUpdate) {
+            externalUpdateNotifiedRef.current = fileInfo.modified;
+
+            if (!skipConflictCheck) {
+              const reload = window.confirm(
+                'ファイルが他の人によって更新されています。\nOK: 最新の内容を読み込み\nキャンセル: サーバの内容をバックアップして現在の画面き保存',
+              );
+
+              if (reload) {
+                const fileResult = await loadExcalidrawFile(currentFilePathValue);
+                if (fileResult) {
+                  applyLoadedFile(fileResult.data, fileResult.modified, '最新の内容を読み込みました');
+                } else {
+                  showSaveNotification('最新の内容の読み込みに失敗しました', true);
+                }
+                return false;
+              }
+            }
+
+            shouldForceBackup = true;
+            if (!skipConflictCheck) {
+              conflictOverwrite = true;
+            }
+          }
+        }
+      } catch (error) {
+        console.error('Error checking file info before save:', error);
+      }
+
+      if (deletedCount > 0 || currentSummaryString !== lastSavedElementsRef.current || shouldForceBackup) {
+
         const fileData: ExcalidrawFileData = {
           type: "excalidraw",
           version: 2,
           source: "https://excalidraw.com",
           elements,
           appState: stateToSave,
-          files: files || {}
+          files: files || {},
         };
-        
-        saveExcalidrawFile(currentFilePathValue, fileData, forceBackup).then(success => {
-          if (success) {
-            console.log(`[Save] File saved successfully (${elements.length} elements, ${deletedCount} deleted)`);
-            setLastSavedElements(currentSummaryString);
-            lastSavedElementsRef.current = currentSummaryString;
-            setLastFileModified(now);
-            lastSaveTimeRef.current = now;
-          } else {
-            console.error(`Failed to save file: ${currentFilePathValue}`);
+
+        const success = await saveExcalidrawFile(currentFilePathValue, fileData, shouldForceBackup);
+        if (success) {
+          console.log(
+            `[Save] File saved successfully (${elements.length} elements, ${deletedCount} deleted)`,
+          );
+          setLastSavedElements(currentSummaryString);
+          lastSavedElementsRef.current = currentSummaryString;
+          const savedTimestamp = Date.now() / 1000;
+          const updatedModified = Math.max(savedTimestamp, latestRemoteModified);
+          setLastFileModified(updatedModified);
+          lastFileModifiedRef.current = updatedModified;
+          lastSaveTimeRef.current = now;
+          externalUpdateNotifiedRef.current = updatedModified;
+          if (conflictOverwrite) {
+            showSaveNotification('最新の内容をバックアップして上書き保存しました');
           }
-        });
+          return true;
+        } else {
+          console.error(`Failed to save file: ${currentFilePathValue}`);
+          showSaveNotification('ファイルの保存に失敗しました', true);
+          return false;
+        }
       }
     } else {
       // ローカルストレージに保存
@@ -916,16 +980,73 @@ export default function ExampleApp({
       if (files) {
         saveBinaryFilesToLocalStorage(files);
       }
-      
+
       // アプリケーション状態も保存
       saveAppStateToLocalStorage(stateToSave);
       
       lastSaveTimeRef.current = now;
+      return true;
     }
-  }, [excalidrawAPI]);
+
+    return false;
+  }, [applyLoadedFile, buildElementSummary, excalidrawAPI, showSaveNotification]);
+
+  // 定期的にファイルの更新日時をチェック
+  useEffect(() => {
+    if (!currentFilePath || !excalidrawAPI) {
+      return;
+    }
+
+    const checkFileUpdates = async () => {
+      try {
+        const fileInfo = await getFileInfo(currentFilePath);
+        if (!fileInfo || !fileInfo.exists) {
+          return;
+        }
+
+        const hasNewerVersion = fileInfo.modified > lastFileModifiedRef.current + 0.0001;
+        const alreadyNotified = fileInfo.modified <= externalUpdateNotifiedRef.current + 0.0001;
+
+        if (hasNewerVersion && !alreadyNotified) {
+          externalUpdateNotifiedRef.current = fileInfo.modified;
+
+          const shouldReload = window.confirm(
+            'ファイルが他の人によって更新されています。\nOK: 最新の内容を読み込み\nキャンセル: 現在の内容をバックアップして上書き保存',
+          );
+
+          if (shouldReload) {
+            const fileResult = await loadExcalidrawFile(currentFilePath);
+            if (fileResult) {
+              applyLoadedFile(fileResult.data, fileResult.modified, '最新の内容を読み込みました');
+            } else {
+              showSaveNotification('最新の内容の読み込みに失敗しました', true);
+            }
+          } else {
+            const currentElements = excalidrawAPI.getSceneElements();
+            const currentAppState = excalidrawAPI.getAppState();
+            const currentFiles = excalidrawAPI.getFiles();
+            const saved = await performSave(currentElements, currentAppState, currentFiles, true, true);
+            if (saved) {
+              showSaveNotification('最新の内容をバックアップして上書き保存しました');
+            } else {
+              showSaveNotification('上書き保存に失敗しました', true);
+            }
+          }
+        }
+      } catch (error) {
+        console.error('Error checking file updates:', error);
+      }
+    };
+
+    const interval = setInterval(checkFileUpdates, 5000);
+
+    return () => {
+      clearInterval(interval);
+    };
+  }, [applyLoadedFile, currentFilePath, excalidrawAPI, performSave, showSaveNotification]);
 
   // 強制保存関数（10秒制限を無視）
-  const forceSave = useCallback((
+  const forceSave = useCallback(async (
     elements: NonDeletedExcalidrawElement[],
     appState: any,
     files: any
@@ -933,17 +1054,16 @@ export default function ExampleApp({
     console.log(`[Force Save] Executing forced save (elements: ${elements.length})`);
     
     // 10秒制限を無視して即座に保存
-    const originalLastSaveTime = lastSaveTimeRef.current;
     lastSaveTimeRef.current = 0; // 制限をバイパス
     
-    performSave(elements, appState, files);
-    
+    await performSave(elements, appState, files);
+
     // 保存後に実際の時刻を設定
     lastSaveTimeRef.current = Date.now();
   }, [performSave]);
 
   // 手動保存関数（強制バックアップ付き）
-  const manualSave = useCallback((
+  const manualSave = useCallback(async (
     elements: NonDeletedExcalidrawElement[],
     appState: any,
     files: any
@@ -951,7 +1071,7 @@ export default function ExampleApp({
     console.log(`[Manual Save] Executing manual save with forced backup (elements: ${elements.length})`);
     
     // 既存のperformSave関数を使用して手動保存を実行
-    performSave(elements, appState, files, true); // 強制バックアップフラグを渡す
+    await performSave(elements, appState, files, true); // 強制バックアップフラグを渡す
     showSaveNotification('保存しました');
   }, [performSave, showSaveNotification]);
 
@@ -973,7 +1093,7 @@ export default function ExampleApp({
         const files = excalidrawAPI.getFiles();
         
         // 同期的に保存を実行（beforeunloadは同期処理が必要）
-        forceSave(elements, appState, files);
+        void forceSave(elements, appState, files);
       }
     };
 
@@ -983,7 +1103,7 @@ export default function ExampleApp({
         const elements = excalidrawAPI.getSceneElements();
         const appState = excalidrawAPI.getAppState();
         const files = excalidrawAPI.getFiles();
-        forceSave(elements, appState, files);
+        void forceSave(elements, appState, files);
       }
     };
 
@@ -993,7 +1113,7 @@ export default function ExampleApp({
         const elements = excalidrawAPI.getSceneElements();
         const appState = excalidrawAPI.getAppState();
         const files = excalidrawAPI.getFiles();
-        forceSave(elements, appState, files);
+        void forceSave(elements, appState, files);
       }
     };
 
@@ -1003,7 +1123,7 @@ export default function ExampleApp({
         const elements = excalidrawAPI.getSceneElements();
         const appState = excalidrawAPI.getAppState();
         const files = excalidrawAPI.getFiles();
-        forceSave(elements, appState, files);
+        void forceSave(elements, appState, files);
       }
     };
 
