@@ -136,6 +136,18 @@ class OpenFolderResponse(BaseModel):
     openedPath: Optional[str] = None
     error: Optional[str] = None
 
+
+class RunCommandRequest(BaseModel):
+    command: str
+    working_directory: Optional[str] = None
+
+
+class RunCommandResponse(BaseModel):
+    success: bool
+    command: str
+    pid: Optional[int] = None
+    error: Optional[str] = None
+
 class ListDirectoryRequest(BaseModel):
     path: Optional[str] = None
     show_hidden: bool = False
@@ -456,6 +468,69 @@ async def _open_path_via_os(raw_path: str) -> OpenFileResponse:
     )
 
 
+def _strip_cmd_prefix(raw_command: str) -> str:
+    if raw_command is None:
+        return ""
+
+    trimmed = raw_command.strip()
+    if not trimmed:
+        return ""
+
+    lower = trimmed.lower()
+    if lower == "cmd":
+        return ""
+
+    if lower.startswith("cmd"):
+        remainder = trimmed[3:]
+        if not remainder:
+            return ""
+        if remainder[0].isspace():
+            return remainder.lstrip()
+
+    return trimmed
+
+
+def _normalize_command_for_platform(command: str) -> str:
+    if not command:
+        return ""
+
+    normalized = command.replace("\uFF02", '"')  # Full-width double quote to ASCII
+
+    if sys.platform.startswith("win"):
+        normalized = normalized.replace("¥", "\\").replace("￥", "\\")
+
+    return normalized
+
+
+def _spawn_system_command(command: str, cwd: Optional[str] = None) -> subprocess.Popen:
+    if sys.platform.startswith("win"):
+        creationflags = 0
+        if hasattr(subprocess, "CREATE_NEW_CONSOLE"):
+            creationflags |= subprocess.CREATE_NEW_CONSOLE
+
+        return subprocess.Popen(
+            command,
+            shell=True,
+            cwd=cwd,
+            creationflags=creationflags,
+        )
+
+    shell_executable = os.environ.get("SHELL")
+
+    if sys.platform == "darwin":
+        shell_executable = shell_executable or "/bin/zsh"
+    else:
+        shell_executable = shell_executable or "/bin/bash"
+
+    return subprocess.Popen(
+        command,
+        shell=True,
+        executable=shell_executable,
+        cwd=cwd,
+        start_new_session=True,
+    )
+
+
 @app.post("/api/open-file", response_model=OpenFileResponse)
 async def open_file_post(request: OpenFileRequest):
     return await _open_path_via_os(request.filepath)
@@ -502,6 +577,36 @@ async def open_file_get(filepath: str):
   </body>
 </html>"""
     return HTMLResponse(content=auto_close_html, status_code=200)
+
+
+@app.post("/api/run-command", response_model=RunCommandResponse)
+async def run_command(request: RunCommandRequest):
+    cleaned_command = _strip_cmd_prefix(request.command)
+    cleaned_command = _normalize_command_for_platform(cleaned_command)
+
+    if not cleaned_command:
+        raise HTTPException(status_code=400, detail="Command is empty or missing after removing prefix")
+
+    working_directory: Optional[str] = None
+    if request.working_directory:
+        normalized_workdir = _normalize_filepath(request.working_directory)
+        if sys.platform.startswith("win"):
+            normalized_workdir = normalized_workdir.replace("¥", "\\").replace("￥", "\\")
+
+        if normalized_workdir and not Path(normalized_workdir).exists():
+            raise HTTPException(status_code=400, detail="Specified working directory does not exist")
+
+        working_directory = normalized_workdir or None
+
+    try:
+        process = _spawn_system_command(cleaned_command, cwd=working_directory)
+    except FileNotFoundError as exc:
+        raise HTTPException(status_code=404, detail=f"Failed to locate command: {exc}")
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"Failed to execute command: {exc}")
+
+    return RunCommandResponse(success=True, command=cleaned_command, pid=process.pid)
+
 
 @app.post("/api/save-file")
 async def save_file(request: SaveFileRequest):

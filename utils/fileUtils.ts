@@ -68,6 +68,13 @@ interface BackendOpenFileResponse {
   message?: string;
 }
 
+interface BackendRunCommandResponse {
+  success: boolean;
+  command: string;
+  pid?: number;
+  error?: string;
+}
+
 export const openFileViaBackend = async (filePath: string): Promise<boolean> => {
   try {
     const response = await fetch(`${API_BASE_URL}/api/open-file`, {
@@ -98,7 +105,39 @@ export const openFileViaBackend = async (filePath: string): Promise<boolean> => 
   }
 };
 
+export const runCommandViaBackend = async (command: string): Promise<boolean> => {
+  try {
+    const response = await fetch(`${API_BASE_URL}/api/run-command`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ command }),
+    });
+
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+
+    const result = (await response.json()) as BackendRunCommandResponse;
+
+    if (!result.success) {
+      throw new Error(result.error || 'Backend reported command execution failure');
+    }
+
+    return true;
+  } catch (error) {
+    console.error('Error executing command via backend:', error);
+    if (typeof window !== 'undefined' && window.alert) {
+      window.alert('コマンドを実行できませんでした。コマンドの形式を確認してください。');
+    }
+    return false;
+  }
+};
+
 const SVG_NS = 'http://www.w3.org/2000/svg';
+
+const CMD_LINK_PATTERN = /^cmd(\s|$)/i;
 
 const isTransparentFill = (shape: SVGGraphicsElement): boolean => {
   const fill = shape.getAttribute('fill');
@@ -448,21 +487,28 @@ export const isExcalidrawFile = (filePath: string): boolean => {
  */
 export const handleStickyNoteLink = async (linkUrl: string): Promise<void> => {
   try {
+    const trimmedLink = linkUrl.trim();
+
+    if (CMD_LINK_PATTERN.test(trimmedLink)) {
+      await runCommandViaBackend(trimmedLink);
+      return;
+    }
+
     // URLの場合はそのまま開く
-    if (linkUrl.startsWith('http://') || linkUrl.startsWith('https://')) {
-      window.open(linkUrl, '_blank');
+    if (trimmedLink.startsWith('http://') || trimmedLink.startsWith('https://')) {
+      window.open(trimmedLink, '_blank');
       return;
     }
 
     // ファイルパスの場合
-    if (isExcalidrawFile(linkUrl)) {
+    if (isExcalidrawFile(trimmedLink)) {
       // Excalidrawファイルの場合は現在のアプリで開く
       const currentUrl = new URL(window.location.href);
-      currentUrl.searchParams.set('filepath', linkUrl);
+      currentUrl.searchParams.set('filepath', trimmedLink);
       window.location.href = currentUrl.toString();
     } else {
       // Excalidraw以外のファイルはバックエンド経由で開く
-      const opened = await openFileViaBackend(linkUrl);
+      const opened = await openFileViaBackend(trimmedLink);
       if (!opened) {
         return;
       }
