@@ -587,7 +587,7 @@ export default function ExampleApp({
     if (filePath) {
       // Excalidrawファイル以外の場合はfile viewerを新しいタブで開く
       if (!filePath.toLowerCase().endsWith('.excalidraw')) {
-        openFileViaBackend(filePath);
+        void openFileViaBackend(filePath);
         // URLパラメータをクリアして元の状態に戻す
         window.history.replaceState({}, document.title, window.location.pathname);
         return;
@@ -1258,11 +1258,19 @@ export default function ExampleApp({
           debouncedSave(elements, state, files);
         },
         onLibraryChange: handleLibraryChange,
-        onLinkOpen: (element: NonDeletedExcalidrawElement, event: PointerEvent) => {
+        onLinkOpen: (
+          element: NonDeletedExcalidrawElement,
+          event: CustomEvent<{ nativeEvent: MouseEvent | React.PointerEvent<HTMLCanvasElement> }>,
+        ) => {
           // 付箋のリンククリック処理をカスタマイズ
           if (element.link) {
             event.preventDefault();
-            handleStickyNoteLink(element.link);
+            const nativeEvent = event.detail?.nativeEvent;
+            if (nativeEvent) {
+              nativeEvent.preventDefault();
+              nativeEvent.stopPropagation();
+            }
+            void handleStickyNoteLink(element.link);
           }
         },
       },

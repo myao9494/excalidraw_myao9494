@@ -1,16 +1,17 @@
 from fastapi import FastAPI, HTTPException, UploadFile, File, Form
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, HTMLResponse
 from pydantic import BaseModel, Field
 from pathlib import Path
+from html import escape
+import asyncio
 import json
 import os
 import sys
 import time
 import shutil
 import subprocess
-import mimetypes
 import hashlib
 from datetime import datetime, timedelta
 from typing import Dict, List, Any, Optional
@@ -84,6 +85,15 @@ class SaveFileRequest(BaseModel):
     filepath: str
     data: ExcalidrawFileData
     force_backup: bool = False  # デフォルトは自動保存扱い（10分制限あり）
+
+class OpenFileRequest(BaseModel):
+    filepath: str
+
+class OpenFileResponse(BaseModel):
+    success: bool
+    targetType: Optional[str] = None
+    resolvedPath: Optional[str] = None
+    message: Optional[str] = None
 
 class SaveEmailRequest(BaseModel):
     emailData: str
@@ -395,33 +405,103 @@ async def get_file_info(filepath: str):
         raise HTTPException(status_code=500, detail=f"Error getting file info: {str(e)}")
 
 
-@app.get("/api/open-file")
-async def open_file(filepath: str):
-    """任意のファイルをバックエンド経由で配信"""
+def _normalize_filepath(raw_path: str) -> str:
+    """Expand environment variables, user home, and trim quotes."""
+    if raw_path is None:
+        return ""
+    trimmed = raw_path.strip()
+    if trimmed.startswith('"') and trimmed.endswith('"') and len(trimmed) >= 2:
+        trimmed = trimmed[1:-1]
+    expanded = os.path.expandvars(os.path.expanduser(trimmed))
+    return expanded
+
+
+def _launch_with_system(path_str: str) -> None:
+    """Open file or directory with the OS-specific default handler."""
+    if sys.platform.startswith('win'):
+        # UNC パスも含めて Windows の既定アプリに委譲
+        os.startfile(path_str)  # type: ignore[attr-defined]
+    elif sys.platform == 'darwin':
+        subprocess.run(["open", path_str], check=True)
+    else:
+        subprocess.run(["xdg-open", path_str], check=True)
+
+
+async def _open_path_via_os(raw_path: str) -> OpenFileResponse:
+    if not raw_path:
+        raise HTTPException(status_code=400, detail="File path is required")
+
+    normalized = _normalize_filepath(raw_path)
+    target_path = Path(normalized)
+
+    if target_path.is_dir():
+        target_type = "directory"
+    elif target_path.is_file():
+        target_type = "file"
+    else:
+        raise HTTPException(status_code=404, detail="File or directory not found")
+
     try:
-        import urllib.parse
+        await asyncio.to_thread(_launch_with_system, str(target_path))
+    except FileNotFoundError:
+        raise HTTPException(status_code=404, detail="File or directory not found")
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"Failed to open {target_type}: {exc}")
 
-        decoded_filepath = urllib.parse.unquote_plus(filepath)
-        file_path = Path(decoded_filepath)
+    return OpenFileResponse(
+        success=True,
+        targetType=target_type,
+        resolvedPath=str(target_path),
+        message=f"Opened {target_type} via system handler."
+    )
 
-        if not file_path.exists():
-            raise HTTPException(status_code=404, detail="File not found")
 
-        if file_path.is_dir():
-            raise HTTPException(status_code=400, detail="Path points to a directory")
+@app.post("/api/open-file", response_model=OpenFileResponse)
+async def open_file_post(request: OpenFileRequest):
+    return await _open_path_via_os(request.filepath)
 
-        guessed_type, _ = mimetypes.guess_type(str(file_path))
-        media_type = guessed_type or "application/octet-stream"
 
-        return FileResponse(
-            path=str(file_path),
-            filename=file_path.name,
-            media_type=media_type,
-        )
-    except HTTPException:
-        raise
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error opening file: {str(e)}")
+@app.get("/api/open-file")
+async def open_file_get(filepath: str):
+    import urllib.parse
+
+    decoded_filepath = urllib.parse.unquote_plus(filepath)
+    try:
+        result = await _open_path_via_os(decoded_filepath)
+    except HTTPException as exc:
+        message = exc.detail if isinstance(exc.detail, str) else "Failed to open path"
+        escaped_message = escape(message)
+        error_html = f"""<!DOCTYPE html>
+<html lang=\"ja\">
+  <head>
+    <meta charset=\"utf-8\" />
+    <title>Open File Error</title>
+  </head>
+  <body>
+    <p>{escaped_message}</p>
+  </body>
+</html>"""
+        return HTMLResponse(content=error_html, status_code=exc.status_code)
+
+    escaped_message = escape(result.message or 'Opened path via system handler.')
+    auto_close_html = f"""<!DOCTYPE html>
+<html lang=\"ja\">
+  <head>
+    <meta charset=\"utf-8\" />
+    <title>Open File</title>
+    <script>
+      window.addEventListener('DOMContentLoaded', () => {{
+        setTimeout(() => {{
+          window.close();
+        }}, 50);
+      }});
+    </script>
+  </head>
+  <body>
+    <p>{escaped_message}</p>
+  </body>
+</html>"""
+    return HTMLResponse(content=auto_close_html, status_code=200)
 
 @app.post("/api/save-file")
 async def save_file(request: SaveFileRequest):

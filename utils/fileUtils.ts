@@ -61,14 +61,41 @@ const getApiBaseUrl = (): string => {
 
 export const API_BASE_URL = getApiBaseUrl();
 
-const buildBackendFileUrl = (filePath: string): string => {
-  const encodedPath = encodeURIComponent(filePath);
-  return `${API_BASE_URL}/api/open-file?filepath=${encodedPath}`;
-};
+interface BackendOpenFileResponse {
+  success: boolean;
+  targetType?: 'file' | 'directory';
+  resolvedPath?: string;
+  message?: string;
+}
 
-export const openFileViaBackend = (filePath: string): void => {
-  const targetUrl = buildBackendFileUrl(filePath);
-  window.open(targetUrl, '_blank');
+export const openFileViaBackend = async (filePath: string): Promise<boolean> => {
+  try {
+    const response = await fetch(`${API_BASE_URL}/api/open-file`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ filepath: filePath }),
+    });
+
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+
+    const result = (await response.json()) as BackendOpenFileResponse;
+
+    if (!result.success) {
+      throw new Error(result.message || 'Backend reported failure');
+    }
+
+    return true;
+  } catch (error) {
+    console.error('Error opening file via backend:', error);
+    if (typeof window !== 'undefined' && window.alert) {
+      window.alert('ファイルまたはフォルダを開けませんでした。パスをご確認ください。');
+    }
+    return false;
+  }
 };
 
 const SVG_NS = 'http://www.w3.org/2000/svg';
@@ -419,7 +446,7 @@ export const isExcalidrawFile = (filePath: string): boolean => {
  * 付箋のリンククリック処理
  * Excalidrawファイル以外は外部ファイルビューアーにリダイレクト
  */
-export const handleStickyNoteLink = (linkUrl: string): void => {
+export const handleStickyNoteLink = async (linkUrl: string): Promise<void> => {
   try {
     // URLの場合はそのまま開く
     if (linkUrl.startsWith('http://') || linkUrl.startsWith('https://')) {
@@ -435,12 +462,16 @@ export const handleStickyNoteLink = (linkUrl: string): void => {
       window.location.href = currentUrl.toString();
     } else {
       // Excalidraw以外のファイルはバックエンド経由で開く
-      openFileViaBackend(linkUrl);
+      const opened = await openFileViaBackend(linkUrl);
+      if (!opened) {
+        return;
+      }
     }
   } catch (error) {
     console.error('Error handling sticky note link:', error);
-    // エラーの場合は元のリンクをそのまま開く
-    window.open(linkUrl, '_blank');
+    if (typeof window !== 'undefined' && window.alert) {
+      window.alert('リンクの処理中にエラーが発生しました。');
+    }
   }
 };
 
