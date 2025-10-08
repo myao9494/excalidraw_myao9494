@@ -256,7 +256,7 @@ export default function ExampleApp({
   
   const [currentFilePath, setCurrentFilePath] = useState<string | null>(null);
   const [lastSavedElements, setLastSavedElements] = useState<string>('');
-  const [lastFileModified, setLastFileModified] = useState<number>(0);
+  const [lastFileHash, setLastFileHash] = useState<string>('');
   const [saveNotification, setSaveNotification] = useState<{message: string; isError?: boolean} | null>(null);
   const [isFileBrowserOpen, setIsFileBrowserOpen] = useState<boolean>(false);
   const [isFileBrowserLoading, setIsFileBrowserLoading] = useState<boolean>(false);
@@ -503,8 +503,8 @@ export default function ExampleApp({
   // 最新の値を保持するためのref
   const currentFilePathRef = useRef<string | null>(null);
   const lastSavedElementsRef = useRef<string>('');
-  const lastFileModifiedRef = useRef<number>(0);
-  const externalUpdateNotifiedRef = useRef<number>(0);
+  const lastFileHashRef = useRef<string>('');
+  const externalUpdateNotifiedHashRef = useRef<string>('');
   
   // refの値を更新
   useEffect(() => {
@@ -516,8 +516,8 @@ export default function ExampleApp({
   }, [lastSavedElements]);
 
   useEffect(() => {
-    lastFileModifiedRef.current = lastFileModified;
-  }, [lastFileModified]);
+    lastFileHashRef.current = lastFileHash;
+  }, [lastFileHash]);
 
   const buildElementSummary = useCallback(
     (elements: NonDeletedExcalidrawElement[], deletedCount: number = 0) => {
@@ -621,7 +621,7 @@ export default function ExampleApp({
         // ファイルパスが指定されている場合はファイルから読み込み
         const fileResult = await loadExcalidrawFile(currentFilePath);
         if (fileResult) {
-          const { data: fileData, modified } = fileResult;
+          const { data: fileData, hash } = fileResult;
           dataToLoad = {
             ...initialData,
             elements: fileData.elements.length > 0 ? fileData.elements : convertToExcalidrawElements(initialData.elements),
@@ -629,10 +629,10 @@ export default function ExampleApp({
             files: fileData.files || {},
           };
           
-          // ファイルの更新日時を記録
-          setLastFileModified(modified);
-          lastFileModifiedRef.current = modified;
-          externalUpdateNotifiedRef.current = modified;
+          const resolvedHash = hash || '';
+          setLastFileHash(resolvedHash);
+          lastFileHashRef.current = resolvedHash;
+          externalUpdateNotifiedHashRef.current = resolvedHash;
           // 初期読み込み時の要素を記録
           const initialSummary = buildElementSummary(
             fileData.elements as NonDeletedExcalidrawElement[],
@@ -651,6 +651,9 @@ export default function ExampleApp({
           const emptySummary = buildElementSummary([]);
           setLastSavedElements(emptySummary);
           lastSavedElementsRef.current = emptySummary;
+          setLastFileHash('');
+          lastFileHashRef.current = '';
+          externalUpdateNotifiedHashRef.current = '';
         }
       } else {
         // ローカルストレージからデータを読み込み
@@ -670,6 +673,9 @@ export default function ExampleApp({
         );
         setLastSavedElements(localSummary);
         lastSavedElementsRef.current = localSummary;
+        setLastFileHash('');
+        lastFileHashRef.current = '';
+        externalUpdateNotifiedHashRef.current = '';
       }
       
       // ライブラリファイルをロードしてlibraryItemsに追加
@@ -830,7 +836,7 @@ export default function ExampleApp({
   const applyLoadedFile = useCallback(
     (
       fileData: ExcalidrawFileData,
-      modified: number,
+      hash?: string,
       notifyMessage?: string,
     ) => {
       if (!excalidrawAPI) {
@@ -856,9 +862,11 @@ export default function ExampleApp({
       setLastSavedElements(summaryString);
       lastSavedElementsRef.current = summaryString;
 
-      setLastFileModified(modified);
-      lastFileModifiedRef.current = modified;
-      externalUpdateNotifiedRef.current = modified;
+      if (typeof hash === 'string') {
+        setLastFileHash(hash);
+        lastFileHashRef.current = hash;
+        externalUpdateNotifiedHashRef.current = hash;
+      }
 
       if (notifyMessage) {
         showSaveNotification(notifyMessage);
@@ -899,19 +907,25 @@ export default function ExampleApp({
       const allElements = excalidrawAPI?.getSceneElementsIncludingDeleted() || [];
       const deletedCount = allElements.filter((el) => el.isDeleted).length;
       const currentSummaryString = buildElementSummary(elements, deletedCount);
-      let latestRemoteModified = lastFileModifiedRef.current;
+      let latestRemoteHash = lastFileHashRef.current;
       let shouldForceBackup = forceBackup;
       let conflictOverwrite = false;
 
       try {
         const fileInfo = await getFileInfo(currentFilePathValue);
         if (fileInfo?.exists) {
-          latestRemoteModified = fileInfo.modified;
+          const remoteHash = fileInfo.hash || '';
+          if (remoteHash) {
+            latestRemoteHash = remoteHash;
+          }
+
           const hasExternalUpdate =
-            fileInfo.modified > lastFileModifiedRef.current + 0.0001;
+            !!remoteHash && remoteHash !== lastFileHashRef.current;
 
           if (hasExternalUpdate) {
-            externalUpdateNotifiedRef.current = fileInfo.modified;
+            if (remoteHash) {
+              externalUpdateNotifiedHashRef.current = remoteHash;
+            }
 
             if (!skipConflictCheck) {
               const reload = window.confirm(
@@ -921,7 +935,11 @@ export default function ExampleApp({
               if (reload) {
                 const fileResult = await loadExcalidrawFile(currentFilePathValue);
                 if (fileResult) {
-                  applyLoadedFile(fileResult.data, fileResult.modified, '最新の内容を読み込みました');
+                  applyLoadedFile(
+                    fileResult.data,
+                    fileResult.hash,
+                    '最新の内容を読み込みました',
+                  );
                 } else {
                   showSaveNotification('最新の内容の読み込みに失敗しました', true);
                 }
@@ -950,19 +968,22 @@ export default function ExampleApp({
           files: files || {},
         };
 
-        const success = await saveExcalidrawFile(currentFilePathValue, fileData, shouldForceBackup);
-        if (success) {
+        const saveResult = await saveExcalidrawFile(currentFilePathValue, fileData, shouldForceBackup);
+        if (saveResult?.success) {
           console.log(
             `[Save] File saved successfully (${elements.length} elements, ${deletedCount} deleted)`,
           );
           setLastSavedElements(currentSummaryString);
           lastSavedElementsRef.current = currentSummaryString;
-          const savedTimestamp = Date.now() / 1000;
-          const updatedModified = Math.max(savedTimestamp, latestRemoteModified);
-          setLastFileModified(updatedModified);
-          lastFileModifiedRef.current = updatedModified;
           lastSaveTimeRef.current = now;
-          externalUpdateNotifiedRef.current = updatedModified;
+
+          const resolvedHash = saveResult.hash || latestRemoteHash;
+          if (resolvedHash) {
+            setLastFileHash(resolvedHash);
+            lastFileHashRef.current = resolvedHash;
+            externalUpdateNotifiedHashRef.current = resolvedHash;
+          }
+
           if (conflictOverwrite) {
             showSaveNotification('最新の内容をバックアップして上書き保存しました');
           }
@@ -1005,11 +1026,14 @@ export default function ExampleApp({
           return;
         }
 
-        const hasNewerVersion = fileInfo.modified > lastFileModifiedRef.current + 0.0001;
-        const alreadyNotified = fileInfo.modified <= externalUpdateNotifiedRef.current + 0.0001;
+        const remoteHash = fileInfo.hash || '';
+        const hasNewerVersion = !!remoteHash && remoteHash !== lastFileHashRef.current;
+        const alreadyNotified = remoteHash === externalUpdateNotifiedHashRef.current;
 
         if (hasNewerVersion && !alreadyNotified) {
-          externalUpdateNotifiedRef.current = fileInfo.modified;
+          if (remoteHash) {
+            externalUpdateNotifiedHashRef.current = remoteHash;
+          }
 
           const shouldReload = window.confirm(
             'ファイルが他の人によって更新されています。\nOK: 最新の内容を読み込み\nキャンセル: 現在の内容をバックアップして上書き保存',
@@ -1018,7 +1042,7 @@ export default function ExampleApp({
           if (shouldReload) {
             const fileResult = await loadExcalidrawFile(currentFilePath);
             if (fileResult) {
-              applyLoadedFile(fileResult.data, fileResult.modified, '最新の内容を読み込みました');
+              applyLoadedFile(fileResult.data, fileResult.hash, '最新の内容を読み込みました');
             } else {
               showSaveNotification('最新の内容の読み込みに失敗しました', true);
             }
@@ -1039,7 +1063,7 @@ export default function ExampleApp({
       }
     };
 
-    const interval = setInterval(checkFileUpdates, 5000);
+    const interval = setInterval(checkFileUpdates, 10000);
 
     return () => {
       clearInterval(interval);

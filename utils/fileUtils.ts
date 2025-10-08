@@ -12,6 +12,25 @@ export interface ExcalidrawFileData {
   files?: any;
 }
 
+export interface LoadFileResponse {
+  data: ExcalidrawFileData;
+  hash: string;
+  modified?: number;
+}
+
+export interface FileInfoResponse {
+  exists: boolean;
+  hash?: string;
+  modified?: number;
+}
+
+export interface SaveFileResponse {
+  success: boolean;
+  message?: string;
+  modified?: number;
+  hash?: string;
+}
+
 export const getFilePathFromUrl = (): string | null => {
   const urlParams = new URLSearchParams(window.location.search);
   const rawFilepath = urlParams.get('filepath');
@@ -208,7 +227,7 @@ const enhanceSvgLinks = (svg: SVGSVGElement | null): void => {
   addClickableOverlays(svg);
 };
 
-export const loadExcalidrawFile = async (filePath: string): Promise<{ data: ExcalidrawFileData; modified: number } | null> => {
+export const loadExcalidrawFile = async (filePath: string): Promise<LoadFileResponse | null> => {
   try {
     const response = await fetch(`${API_BASE_URL}/api/load-file?filepath=${encodeURIComponent(filePath)}`);
     
@@ -229,7 +248,7 @@ export const loadExcalidrawFile = async (filePath: string): Promise<{ data: Exca
   }
 };
 
-export const getFileInfo = async (filePath: string): Promise<{ modified: number; exists: boolean } | null> => {
+export const getFileInfo = async (filePath: string): Promise<FileInfoResponse | null> => {
   try {
     const response = await fetch(`${API_BASE_URL}/api/file-info?filepath=${encodeURIComponent(filePath)}`);
     
@@ -249,7 +268,11 @@ export const getFileInfo = async (filePath: string): Promise<{ modified: number;
   }
 };
 
-export const saveExcalidrawFile = async (filePath: string, data: ExcalidrawFileData, forceBackup: boolean = false): Promise<boolean> => {
+export const saveExcalidrawFile = async (
+  filePath: string,
+  data: ExcalidrawFileData,
+  forceBackup: boolean = false
+): Promise<SaveFileResponse | null> => {
   try {
     const saveUrl = `${API_BASE_URL}/api/save-file`;
     console.log(`[DEBUG] Saving file to: ${saveUrl}`);
@@ -276,14 +299,17 @@ export const saveExcalidrawFile = async (filePath: string, data: ExcalidrawFileD
     if (!result?.success) {
       const message = result?.message || 'File save skipped by server.';
       console.warn('File save skipped:', message);
-      return false;
+      return {
+        success: false,
+        message,
+      };
     }
-    
+
     console.log('File saved successfully:', result.message);
-    return true;
+    return result;
   } catch (error) {
     console.error('Error saving file:', error);
-    return false;
+    return null;
   }
 };
 

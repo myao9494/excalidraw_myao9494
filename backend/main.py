@@ -11,6 +11,7 @@ import time
 import shutil
 import subprocess
 import mimetypes
+import hashlib
 from datetime import datetime, timedelta
 from typing import Dict, List, Any, Optional
 
@@ -144,6 +145,24 @@ class ListDirectoryResponse(BaseModel):
     parentPath: Optional[str] = None
     entries: List[DirectoryEntry] = Field(default_factory=list)
     error: Optional[str] = None
+
+
+def compute_data_hash(data: Any) -> str:
+    """Returns a stable SHA-256 hash for predictable change detection."""
+    canonical = json.dumps(
+        data,
+        ensure_ascii=False,
+        sort_keys=True,
+        separators=(",", ":"),
+        default=str,
+    )
+    return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
+
+
+def load_json_file(file_path: Path) -> Any:
+    with open(file_path, "r", encoding="utf-8") as file:
+        return json.load(file)
+
 
 def create_backup(filepath: str, force: bool = False) -> bool:
     """
@@ -328,17 +347,15 @@ async def load_file(filepath: str):
         if not file_path.exists():
             raise HTTPException(status_code=404, detail="File not found")
         
-        # ファイルの更新日時を取得
-        file_modified_time = file_path.stat().st_mtime
-        
         # ファイルを読み込み
-        with open(file_path, 'r', encoding='utf-8') as f:
-            data = json.load(f)
-        
-        # ファイルデータに更新日時を追加
+        data = load_json_file(file_path)
+        data_hash = compute_data_hash(data)
+
+        # ファイルデータに更新情報を追加
         return {
             "data": data,
-            "modified": file_modified_time
+            "modified": 0,
+            "hash": data_hash,
         }
     
     except FileNotFoundError:
@@ -363,12 +380,13 @@ async def get_file_info(filepath: str):
         if not file_path.exists():
             raise HTTPException(status_code=404, detail="File not found")
         
-        # ファイルの更新日時を取得
-        file_modified_time = file_path.stat().st_mtime
-        
+        data = load_json_file(file_path)
+        data_hash = compute_data_hash(data)
+
         return {
-            "modified": file_modified_time,
-            "exists": True
+            "modified": 0,
+            "hash": data_hash,
+            "exists": True,
         }
     
     except FileNotFoundError:
@@ -439,7 +457,14 @@ async def save_file(request: SaveFileRequest):
         with open(file_path, 'w', encoding='utf-8') as f:
             json.dump(data_to_save, f, ensure_ascii=False, indent=2)
 
-        return {"success": True, "message": f"File saved to {request.filepath}"}
+        data_hash = compute_data_hash(data_to_save)
+
+        return {
+            "success": True,
+            "message": f"File saved to {request.filepath}",
+            "modified": 0,
+            "hash": data_hash,
+        }
     
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error saving file: {str(e)}")

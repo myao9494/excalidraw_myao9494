@@ -335,7 +335,10 @@ const webURL = convertToWebURL(filePath);
 const result = await loadExcalidrawFile(filePath);
 
 // ファイル保存
-const success = await saveExcalidrawFile(filePath, data);
+const saveResult = await saveExcalidrawFile(filePath, data);
+if (saveResult?.success) {
+  console.log(saveResult.hash);
+}
 
 // ファイル情報取得
 const info = await getFileInfo(filePath);
