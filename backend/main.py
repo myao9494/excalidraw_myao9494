@@ -4,7 +4,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse, HTMLResponse
 from pydantic import BaseModel, Field
 from pathlib import Path
-from html import escape
+from html import escape, unescape
 import asyncio
 import json
 import os
@@ -581,8 +581,12 @@ async def open_file_get(filepath: str):
 
 @app.post("/api/run-command", response_model=RunCommandResponse)
 async def run_command(request: RunCommandRequest):
-    cleaned_command = _strip_cmd_prefix(request.command)
+    # まずHTMLエンティティをデコード（例: &quot; → "）
+    raw_command = unescape(request.command)
+    cleaned_command = _strip_cmd_prefix(raw_command)
     cleaned_command = _normalize_command_for_platform(cleaned_command)
+    # print(f"[DEBUG] Running command: {cleaned_command}")
+    print("[DEBUG] request:", repr(request))
 
     if not cleaned_command:
         raise HTTPException(status_code=400, detail="Command is empty or missing after removing prefix")

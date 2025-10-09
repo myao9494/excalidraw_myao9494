@@ -1270,7 +1270,7 @@ export default function ExampleApp({
               nativeEvent.preventDefault();
               nativeEvent.stopPropagation();
             }
-            void handleStickyNoteLink(element.link);
+            void handleStickyNoteLink(element.link, getCurrentFolder() ?? undefined);
           }
         },
       },

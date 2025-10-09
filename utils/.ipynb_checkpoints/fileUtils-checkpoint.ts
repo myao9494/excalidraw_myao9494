@@ -105,42 +105,27 @@ export const openFileViaBackend = async (filePath: string): Promise<boolean> => 
   }
 };
 
-const normalizeFolderPath = (rawPath: string): string => {
-  // Windowsの区切り文字も考慮してスラッシュに統一
-  return rawPath.replace(/\\/g, '/');
-};
-
-const resolveFolderFromUrlParam = (): string | undefined => {
-  const filePath = getFilePathFromUrl();
-  if (!filePath) {
-    return undefined;
-  }
-
-  const normalizedPath = normalizeFolderPath(filePath);
-  const lastSlashIndex = normalizedPath.lastIndexOf('/');
-
-  if (lastSlashIndex <= 0) {
-    return undefined;
-  }
-
-  return normalizedPath.substring(0, lastSlashIndex);
-};
-
 export const runCommandViaBackend = async (
   command: string,
   folderPath?: string  // ← 渡されなかったら自動で決定
-): Promise<boolean> => {
+  ): Promise<boolean> => {
   try {
     // HTMLエンティティをデコード（例: &quot; → "）
     const decodedCommand = command.replace(/&quot;/g, '"');
 
     // 🔽 カレントフォルダが未指定なら、現在のExcalidrawファイルパスから取得
-    const resolvedFolderPath = folderPath && folderPath.trim().length > 0
-      ? normalizeFolderPath(folderPath)
-      : resolveFolderFromUrlParam();
+    if (!folderPath) {
+      const filePath = getFilePathFromUrl();
+      if (filePath) {
+        const lastSlash = filePath.lastIndexOf('/');
+        if (lastSlash > 0) {
+          folderPath = filePath.substring(0, lastSlash);
+        }
+      }
+    }
 
     console.log('[DEBUG] Running command:', decodedCommand);
-    console.log('[DEBUG] Working directory:', resolvedFolderPath ?? '(not provided)');
+    console.log('[DEBUG] Working directory:', folderPath);
 
     const response = await fetch(`${API_BASE_URL}/api/run-command`, {
       method: 'POST',
@@ -149,7 +134,7 @@ export const runCommandViaBackend = async (
       },
       body: JSON.stringify({
         command: decodedCommand,
-        working_directory: resolvedFolderPath || '',  // FastAPIのRunCommandRequestに合わせる
+        working_directory: folderPath || '',  // FastAPIのRunCommandRequestに合わせる
       }),
     });
 
