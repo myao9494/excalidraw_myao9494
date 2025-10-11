@@ -505,6 +505,7 @@ export default function ExampleApp({
   const lastSavedElementsRef = useRef<string>('');
   const lastFileHashRef = useRef<string>('');
   const externalUpdateNotifiedHashRef = useRef<string>('');
+  const saveInProgressRef = useRef<boolean>(false);
   
   // refの値を更新
   useEffect(() => {
@@ -895,50 +896,55 @@ export default function ExampleApp({
     skipConflictCheck: boolean = false
   ) => {
     const now = Date.now();
-    
-    // 保存したいアプリケーション状態のみを抽出
-    const stateToSave = {
-      viewBackgroundColor: appState.viewBackgroundColor,
-      currentItemFontFamily: appState.currentItemFontFamily,
-      currentItemFontSize: appState.currentItemFontSize,
-      currentItemStrokeColor: appState.currentItemStrokeColor,
-      currentItemBackgroundColor: appState.currentItemBackgroundColor,
-      currentItemFillStyle: appState.currentItemFillStyle,
-      currentItemStrokeWidth: appState.currentItemStrokeWidth,
-      currentItemStrokeStyle: appState.currentItemStrokeStyle,
-      currentItemRoughness: appState.currentItemRoughness,
-      currentItemOpacity: appState.currentItemOpacity,
-      zoom: appState.zoom,
-      scrollX: appState.scrollX,
-      scrollY: appState.scrollY,
-    };
+    const alreadySaving = saveInProgressRef.current;
+    saveInProgressRef.current = true;
 
-    const currentFilePathValue = currentFilePathRef.current;
-    if (currentFilePathValue) {
-      const allElements = excalidrawAPI?.getSceneElementsIncludingDeleted() || [];
-      const deletedCount = allElements.filter((el) => el.isDeleted).length;
-      const currentSummaryString = buildElementSummary(elements, deletedCount);
-      let latestRemoteHash = lastFileHashRef.current;
-      let shouldForceBackup = forceBackup;
-      let conflictOverwrite = false;
+    try {
+      // 保存したいアプリケーション状態のみを抽出
+      const stateToSave = {
+        viewBackgroundColor: appState.viewBackgroundColor,
+        currentItemFontFamily: appState.currentItemFontFamily,
+        currentItemFontSize: appState.currentItemFontSize,
+        currentItemStrokeColor: appState.currentItemStrokeColor,
+        currentItemBackgroundColor: appState.currentItemBackgroundColor,
+        currentItemFillStyle: appState.currentItemFillStyle,
+        currentItemStrokeWidth: appState.currentItemStrokeWidth,
+        currentItemStrokeStyle: appState.currentItemStrokeStyle,
+        currentItemRoughness: appState.currentItemRoughness,
+        currentItemOpacity: appState.currentItemOpacity,
+        zoom: appState.zoom,
+        scrollX: appState.scrollX,
+        scrollY: appState.scrollY,
+      };
 
-      try {
-        const fileInfo = await getFileInfo(currentFilePathValue);
-        if (fileInfo?.exists) {
-          const remoteHash = fileInfo.hash || '';
-          if (remoteHash) {
-            latestRemoteHash = remoteHash;
-          }
+      const currentFilePathValue = currentFilePathRef.current;
+      if (currentFilePathValue) {
+        const allElements = excalidrawAPI?.getSceneElementsIncludingDeleted() || [];
+        const deletedCount = allElements.filter((el) => el.isDeleted).length;
+        const currentSummaryString = buildElementSummary(elements, deletedCount);
+        let latestRemoteHash = lastFileHashRef.current;
+        let shouldForceBackup = forceBackup;
+        let conflictOverwrite = false;
 
-          const hasExternalUpdate =
-            !!remoteHash && remoteHash !== lastFileHashRef.current;
-
-          if (hasExternalUpdate) {
+        try {
+          const skipConflictDetection = skipConflictCheck || alreadySaving;
+          const fileInfo = await getFileInfo(currentFilePathValue);
+          if (fileInfo?.exists) {
+            const remoteHash = fileInfo.hash || '';
             if (remoteHash) {
-              externalUpdateNotifiedHashRef.current = remoteHash;
+              latestRemoteHash = remoteHash;
             }
 
-            if (!skipConflictCheck) {
+            const hasExternalUpdate =
+              !skipConflictDetection &&
+              !!remoteHash &&
+              remoteHash !== lastFileHashRef.current;
+
+            if (hasExternalUpdate) {
+              if (remoteHash) {
+                externalUpdateNotifiedHashRef.current = remoteHash;
+              }
+
               const reload = window.confirm(
                 'ファイルが他の人によって更新されています。\nOK: 最新の内容を読み込み\nキャンセル: サーバの内容をバックアップして現在の画面き保存',
               );
@@ -956,90 +962,94 @@ export default function ExampleApp({
                 }
                 return false;
               }
-            }
 
-            shouldForceBackup = true;
-            if (!skipConflictCheck) {
+              shouldForceBackup = true;
               conflictOverwrite = true;
             }
           }
+        } catch (error) {
+          console.error('Error checking file info before save:', error);
         }
-      } catch (error) {
-        console.error('Error checking file info before save:', error);
-      }
 
-      if (deletedCount > 0 || currentSummaryString !== lastSavedElementsRef.current || shouldForceBackup) {
+        if (deletedCount > 0 || currentSummaryString !== lastSavedElementsRef.current || shouldForceBackup) {
+          const fileData: ExcalidrawFileData = {
+            type: "excalidraw",
+            version: 2,
+            source: "https://excalidraw.com",
+            elements,
+            appState: stateToSave,
+            files: files || {},
+          };
 
-        const fileData: ExcalidrawFileData = {
-          type: "excalidraw",
-          version: 2,
-          source: "https://excalidraw.com",
-          elements,
-          appState: stateToSave,
-          files: files || {},
-        };
+          const saveResult = await saveExcalidrawFile(currentFilePathValue, fileData, shouldForceBackup);
+          if (saveResult?.success) {
+            // console.log(
+            //   `[Save] File saved successfully (${elements.length} elements, ${deletedCount} deleted)`,
+            // );
+            setLastSavedElements(currentSummaryString);
+            lastSavedElementsRef.current = currentSummaryString;
+            lastSaveTimeRef.current = now;
 
-        const saveResult = await saveExcalidrawFile(currentFilePathValue, fileData, shouldForceBackup);
-        if (saveResult?.success) {
-          // console.log(
-          //   `[Save] File saved successfully (${elements.length} elements, ${deletedCount} deleted)`,
-          // );
-          setLastSavedElements(currentSummaryString);
-          lastSavedElementsRef.current = currentSummaryString;
-          lastSaveTimeRef.current = now;
-
-          const resolvedHash = saveResult.hash || latestRemoteHash;
-          if (resolvedHash) {
-            setLastFileHash(resolvedHash);
-            lastFileHashRef.current = resolvedHash;
-            externalUpdateNotifiedHashRef.current = resolvedHash;
-          }
-
-          if (conflictOverwrite) {
-            showSaveNotification('最新の内容をバックアップして上書き保存しました');
-          }
-          return true;
-        } else {
-          // 保存失敗時のリトライ/強制保存ロジック
-          const retry = window.confirm("ファイルの保存に失敗しました。再試行しますか？");
-          if (retry) {
-            // console.log("Retrying save in 1 second...");
-            await new Promise(resolve => setTimeout(resolve, 1000));
-            return await performSave(elements, appState, files, forceBackup, skipConflictCheck);
-          } else {
-            const forceSaveConfirm = window.confirm("サーバー上のファイルをバックアップして、現在の内容で強制的に上書き保存しますか？");
-            if (forceSaveConfirm) {
-              // console.log("Attempting to force save...");
-              // 強制バックアップとコンフリクトチェックのスキップを有効にして再実行
-              return await performSave(elements, appState, files, true, true);
+            const resolvedHash = saveResult.hash || latestRemoteHash;
+            if (resolvedHash) {
+              setLastFileHash(resolvedHash);
+              lastFileHashRef.current = resolvedHash;
+              externalUpdateNotifiedHashRef.current = resolvedHash;
             }
+
+            if (conflictOverwrite) {
+              showSaveNotification('最新の内容をバックアップして上書き保存しました');
+            }
+            return true;
+          } else {
+            // 保存失敗時のリトライ/強制保存ロジック
+            const retry = window.confirm("ファイルの保存に失敗しました。再試行しますか？");
+            if (retry) {
+              // console.log("Retrying save in 1 second...");
+              await new Promise(resolve => setTimeout(resolve, 1000));
+              return await performSave(elements, appState, files, forceBackup, skipConflictCheck);
+            } else {
+              const forceSaveConfirm = window.confirm("サーバー上のファイルをバックアップして、現在の内容で強制的に上書き保存しますか？");
+              if (forceSaveConfirm) {
+                // console.log("Attempting to force save...");
+                // 強制バックアップとコンフリクトチェックのスキップを有効にして再実行
+                return await performSave(elements, appState, files, true, true);
+              }
+            }
+            // ユーザーがすべてのダイアログをキャンセルした場合
+            return false;
           }
-          // ユーザーがすべてのダイアログをキャンセルした場合
-          return false;
         }
-      }
-    } else {
-      // ローカルストレージに保存
-      saveElementsToLocalStorage(elements);
-      
-      // 画像データも保存
-      if (files) {
-        saveBinaryFilesToLocalStorage(files);
+      } else {
+        // ローカルストレージに保存
+        saveElementsToLocalStorage(elements);
+        
+        // 画像データも保存
+        if (files) {
+          saveBinaryFilesToLocalStorage(files);
+        }
+
+        // アプリケーション状態も保存
+        saveAppStateToLocalStorage(stateToSave);
+        
+        lastSaveTimeRef.current = now;
+        return true;
       }
 
-      // アプリケーション状態も保存
-      saveAppStateToLocalStorage(stateToSave);
-      
-      lastSaveTimeRef.current = now;
-      return true;
+      return false;
+    } finally {
+      if (!alreadySaving) {
+        saveInProgressRef.current = false;
+      }
     }
-
-    return false;
   }, [applyLoadedFile, buildElementSummary, excalidrawAPI, showSaveNotification]);
 
   // 定期的にファイルの更新日時をチェック
   const checkFileUpdates = useCallback(async () => {
     if (!currentFilePath || !excalidrawAPI) {
+      return;
+    }
+    if (saveInProgressRef.current) {
       return;
     }
     try {
