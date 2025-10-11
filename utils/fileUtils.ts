@@ -42,8 +42,8 @@ export const getFilePathFromUrl = (): string | null => {
   try {
     // 明示的にデコードを行う（ダブルクォートなどの特殊文字に対応）
     const decodedFilepath = decodeURIComponent(rawFilepath);
-    console.log('[DEBUG] Original filepath param:', rawFilepath);
-    console.log('[DEBUG] Decoded filepath:', decodedFilepath);
+    // console.log('[DEBUG] Original filepath param:', rawFilepath);
+    // console.log('[DEBUG] Decoded filepath:', decodedFilepath);
     return decodedFilepath;
   } catch (error) {
     console.warn('Failed to decode filepath, using original:', error);
@@ -55,7 +55,7 @@ const getApiBaseUrl = (): string => {
   // 現在のホストを取得し、バックエンドポート(8008)を使用
   const currentHost = window.location.hostname;
   const baseUrl = `http://${currentHost}:8008`;
-  console.log(`[DEBUG] API Base URL: ${baseUrl} (hostname: ${currentHost})`);
+  // console.log(`[DEBUG] API Base URL: ${API_BASE_URL} (hostname: ${window.location.hostname})`);
   return baseUrl;
 };
 
@@ -379,9 +379,9 @@ export const saveExcalidrawFile = async (
 ): Promise<SaveFileResponse | null> => {
   try {
     const saveUrl = `${API_BASE_URL}/api/save-file`;
-    console.log(`[DEBUG] Saving file to: ${saveUrl}`);
-    console.log(`[DEBUG] File path: ${filePath}`);
-    console.log(`[DEBUG] Force backup: ${forceBackup}`);
+  // console.log(`[DEBUG] Saving file to: ${saveUrl}`);
+  // console.log(`[DEBUG] File path: ${filepath}`);
+  // console.log(`[DEBUG] Force backup: ${forceBackup}`);
     
     const response = await fetch(saveUrl, {
       method: 'POST',
