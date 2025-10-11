@@ -567,12 +567,6 @@ export default function ExampleApp({
 
   useCustom(excalidrawAPI, customArgs);
 
-  // カスタムキーボードショートカット機能を追加
-  useKeyboardShortcuts({
-    excalidrawAPI,
-    viewportCoordsToSceneCoords,
-  });
-
   // ドラッグ&ドロップ機能を追加
   useDragAndDrop({
     excalidrawAPI,
@@ -1121,6 +1115,22 @@ export default function ExampleApp({
     showSaveNotification('保存しました');
   }, [performSave, showSaveNotification]);
 
+  // ショートカット用の保存ハンドラ
+  const handleSaveShortcut = useCallback(() => {
+    if (excalidrawAPI) {
+      const elements = excalidrawAPI.getSceneElements();
+      const appState = excalidrawAPI.getAppState();
+      const files = excalidrawAPI.getFiles();
+      manualSave(elements, appState, files);
+    }
+  }, [excalidrawAPI, manualSave]);
+
+  // カスタムキーボードショートカット機能を追加
+  useKeyboardShortcuts({
+    excalidrawAPI,
+    viewportCoordsToSceneCoords,
+    onSave: handleSaveShortcut,
+  });
 
   // ページを離れる前に未保存の変更を警告する
   useEffect(() => {
@@ -1245,6 +1255,12 @@ export default function ExampleApp({
             }
             void handleStickyNoteLink(element.link, getCurrentFolder() ?? undefined);
           }
+        },
+        uiOptions: {
+          canvasActions: {
+            saveAs: false,
+            saveToActiveFile: false,
+          },
         },
       },
     );

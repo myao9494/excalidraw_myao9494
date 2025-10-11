@@ -11,6 +11,8 @@ export interface KeyboardShortcutsOptions {
   excalidrawAPI: ExcalidrawImperativeAPI | null;
   /** ビューポート座標をシーン座標に変換する関数 */
   viewportCoordsToSceneCoords: (coords: { clientX: number; clientY: number }, appState: any) => { x: number; y: number };
+  /** 保存ショートカット用のコールバック関数 */
+  onSave?: () => void;
 }
 
 /**
@@ -26,7 +28,7 @@ export interface KeyboardShortcutsOptions {
  * 
  * @param options - キーボードショートカットのオプション
  */
-export const useKeyboardShortcuts = ({ excalidrawAPI, viewportCoordsToSceneCoords }: KeyboardShortcutsOptions) => {
+export const useKeyboardShortcuts = ({ excalidrawAPI, viewportCoordsToSceneCoords, onSave }: KeyboardShortcutsOptions) => {
   const mousePosition = useMousePosition();
 
   useEffect(() => {
@@ -45,6 +47,16 @@ export const useKeyboardShortcuts = ({ excalidrawAPI, viewportCoordsToSceneCoord
 
       const key = event.key.toLowerCase();
       const isCtrlOrCmd = event.ctrlKey || event.metaKey;
+
+      // Cmd/Ctrl + S: 保存
+      if (isCtrlOrCmd && key === 's') {
+        event.preventDefault();
+        event.stopImmediatePropagation();
+        if (onSave) {
+          onSave();
+        }
+        return;
+      }
 
       // Cmd/Ctrl + M: 最前面に移動
       if (isCtrlOrCmd && key === 'm') {
@@ -369,12 +381,12 @@ export const useKeyboardShortcuts = ({ excalidrawAPI, viewportCoordsToSceneCoord
       }
     };
 
-    // キーボードイベントリスナーを登録
-    document.addEventListener('keydown', handleKeyDown);
+    // キーボードイベントリスナーを登録（キャプチャフェーズで実行）
+    document.addEventListener('keydown', handleKeyDown, true);
 
     // クリーンアップ関数：コンポーネントがアンマウントされる際にイベントリスナーを削除
     return () => {
-      document.removeEventListener('keydown', handleKeyDown);
+      document.removeEventListener('keydown', handleKeyDown, true);
     };
-  }, [excalidrawAPI, mousePosition, viewportCoordsToSceneCoords]);
+  }, [excalidrawAPI, mousePosition, viewportCoordsToSceneCoords, onSave]);
 };
