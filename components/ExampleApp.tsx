@@ -1122,70 +1122,22 @@ export default function ExampleApp({
   }, [performSave, showSaveNotification]);
 
 
-  // ウィンドウを閉じる前と各種イベントでの強制保存
+  // ページを離れる前に未保存の変更を警告する
   useEffect(() => {
     const handleBeforeUnload = (event: BeforeUnloadEvent) => {
-      // 保存待機中のタイマーがある場合はクリア
-      if (saveTimeoutRef.current) {
-        clearTimeout(saveTimeoutRef.current);
-        saveTimeoutRef.current = null;
-        pendingSaveRef.current = false;
-      }
-      
-      // 最新の状態を取得して強制保存
-      if (excalidrawAPI) {
-        const elements = excalidrawAPI.getSceneElements();
-        const appState = excalidrawAPI.getAppState();
-        const files = excalidrawAPI.getFiles();
-        
-        // 同期的に保存を実行（beforeunloadは同期処理が必要）
-        void forceSave(elements, appState, files);
+      if (excalidrawAPI && isSignificantChange(excalidrawAPI.getSceneElements())) {
+        // 未保存の変更がある場合、ブラウザ標準の確認ダイアログを表示
+        event.preventDefault();
+        event.returnValue = ''; // 古いブラウザ向けの互換性設定
       }
     };
 
-    const handleUnload = () => {
-      // unloadイベントでも確実に保存
-      if (excalidrawAPI) {
-        const elements = excalidrawAPI.getSceneElements();
-        const appState = excalidrawAPI.getAppState();
-        const files = excalidrawAPI.getFiles();
-        void forceSave(elements, appState, files);
-      }
-    };
-
-    const handleVisibilityChange = () => {
-      // ページが隠れる時（タブ切り替え、最小化など）にも保存
-      if (document.visibilityState === 'hidden' && excalidrawAPI) {
-        const elements = excalidrawAPI.getSceneElements();
-        const appState = excalidrawAPI.getAppState();
-        const files = excalidrawAPI.getFiles();
-        void forceSave(elements, appState, files);
-      }
-    };
-
-    const handlePageHide = () => {
-      // pagehideイベントでも確実に保存
-      if (excalidrawAPI) {
-        const elements = excalidrawAPI.getSceneElements();
-        const appState = excalidrawAPI.getAppState();
-        const files = excalidrawAPI.getFiles();
-        void forceSave(elements, appState, files);
-      }
-    };
-
-    // 複数のイベントでの保存を設定
     window.addEventListener('beforeunload', handleBeforeUnload);
-    window.addEventListener('unload', handleUnload);
-    window.addEventListener('pagehide', handlePageHide);
-    document.addEventListener('visibilitychange', handleVisibilityChange);
 
     return () => {
       window.removeEventListener('beforeunload', handleBeforeUnload);
-      window.removeEventListener('unload', handleUnload);
-      window.removeEventListener('pagehide', handlePageHide);
-      document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
-  }, [excalidrawAPI, forceSave]);
+  }, [excalidrawAPI, isSignificantChange]);
 
   // コンポーネントのクリーンアップ時にタイマーをクリア
   useEffect(() => {
