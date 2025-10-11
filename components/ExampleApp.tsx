@@ -529,7 +529,7 @@ export default function ExampleApp({
         geometry: activeElements
           .map(
             (el) =>
-              `${el.id}:${Math.round(el.x)},${Math.round(el.y)},${Math.round(el.width)},${Math.round(el.height)},${Math.round(el.angle || 0)}`,
+              `${el.id}:${el.x.toFixed(2)},${el.y.toFixed(2)},${el.width.toFixed(2)},${el.height.toFixed(2)},${(el.angle || 0).toFixed(2)}`,
           )
           .sort()
           .join('|'),
@@ -726,6 +726,7 @@ export default function ExampleApp({
   // 最新値を保持するRef
   const lastSaveTimeRef = useRef<number>(0);
   const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const lastCheckTimeRef = useRef<number>(0); // 外部ファイルチェック用のタイムスタンプ
 
   // 変更検知用のRef
   const lastChangeTimeRef = useRef<number>(0);
@@ -785,6 +786,12 @@ export default function ExampleApp({
     }
 
     const now = Date.now();
+
+    // 変更検知時に、前回のチェックから5秒以上経過していたら外部更新をチェック
+    if (now - lastCheckTimeRef.current > 5000) {
+      lastCheckTimeRef.current = now;
+      checkFileUpdates();
+    }
     
     // 最後の保存から10秒経過していない場合は保存をスキップ
     if (now - lastSaveTimeRef.current < 10000) {
@@ -1037,61 +1044,52 @@ export default function ExampleApp({
   }, [applyLoadedFile, buildElementSummary, excalidrawAPI, showSaveNotification]);
 
   // 定期的にファイルの更新日時をチェック
-  useEffect(() => {
+  const checkFileUpdates = useCallback(async () => {
     if (!currentFilePath || !excalidrawAPI) {
       return;
     }
-
-    const checkFileUpdates = async () => {
-      try {
-        const fileInfo = await getFileInfo(currentFilePath);
-        if (!fileInfo || !fileInfo.exists) {
-          return;
-        }
-
-        const remoteHash = fileInfo.hash || '';
-        const hasNewerVersion = !!remoteHash && remoteHash !== lastFileHashRef.current;
-        const alreadyNotified = remoteHash === externalUpdateNotifiedHashRef.current;
-
-        if (hasNewerVersion && !alreadyNotified) {
-          if (remoteHash) {
-            externalUpdateNotifiedHashRef.current = remoteHash;
-          }
-
-          const shouldReload = window.confirm(
-            'ファイルが他の人によって更新されています。\nOK: 最新の内容を読み込み\nキャンセル: 現在の内容をバックアップして上書き保存',
-          );
-
-          if (shouldReload) {
-            const fileResult = await loadExcalidrawFile(currentFilePath);
-            if (fileResult) {
-              applyLoadedFile(fileResult.data, fileResult.hash, '最新の内容を読み込みました');
-            } else {
-              showSaveNotification('最新の内容の読み込みに失敗しました', true);
-            }
-          } else {
-            const currentElements = excalidrawAPI.getSceneElements();
-            const currentAppState = excalidrawAPI.getAppState();
-            const currentFiles = excalidrawAPI.getFiles();
-            const saved = await performSave(currentElements, currentAppState, currentFiles, true, true);
-            if (saved) {
-              showSaveNotification('最新の内容をバックアップして上書き保存しました');
-            } else {
-              showSaveNotification('上書き保存に失敗しました', true);
-            }
-          }
-        }
-      } catch (error) {
-        console.error('Error checking file updates:', error);
+    try {
+      const fileInfo = await getFileInfo(currentFilePath);
+      if (!fileInfo || !fileInfo.exists) {
+        return;
       }
-    };
 
-    const interval = setInterval(checkFileUpdates, 10000);
+      const remoteHash = fileInfo.hash || '';
+      const hasNewerVersion = !!remoteHash && remoteHash !== lastFileHashRef.current;
+      const alreadyNotified = remoteHash === externalUpdateNotifiedHashRef.current;
 
-    return () => {
-      clearInterval(interval);
-    };
-  }, [applyLoadedFile, currentFilePath, excalidrawAPI, performSave, showSaveNotification]);
+      if (hasNewerVersion && !alreadyNotified) {
+        if (remoteHash) {
+          externalUpdateNotifiedHashRef.current = remoteHash;
+        }
+
+        const shouldReload = window.confirm(
+          'ファイルが他の人によって更新されています。\nOK: 最新の内容を読み込み\nキャンセル: 現在の内容をバックアップして上書き保存',
+        );
+
+        if (shouldReload) {
+          const fileResult = await loadExcalidrawFile(currentFilePath);
+          if (fileResult) {
+            applyLoadedFile(fileResult.data, fileResult.hash, '最新の内容を読み込みました');
+          } else {
+            showSaveNotification('最新の内容の読み込みに失敗しました', true);
+          }
+        } else {
+          const currentElements = excalidrawAPI.getSceneElements();
+          const currentAppState = excalidrawAPI.getAppState();
+          const currentFiles = excalidrawAPI.getFiles();
+          const saved = await performSave(currentElements, currentAppState, currentFiles, true, true);
+          if (saved) {
+            showSaveNotification('最新の内容をバックアップして上書き保存しました');
+          } else {
+            showSaveNotification('上書き保存に失敗しました', true);
+          }
+        }
+      }
+    } catch (error) {
+      console.error('Error checking file updates:', error);
+    }
+  }, [currentFilePath, excalidrawAPI, applyLoadedFile, performSave, showSaveNotification]);
 
   // 強制保存関数（10秒制限を無視）
   const forceSave = useCallback(async (

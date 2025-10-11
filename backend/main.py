@@ -13,6 +13,7 @@ import time
 import shutil
 import subprocess
 import hashlib
+import traceback
 from datetime import datetime, timedelta
 from typing import Dict, List, Any, Optional
 
@@ -392,6 +393,8 @@ async def load_file(filepath: str):
     except json.JSONDecodeError:
         raise HTTPException(status_code=400, detail="Invalid JSON format")
     except Exception as e:
+        print(f"An unexpected error occurred in load_file: {e}")
+        traceback.print_exc()
         raise HTTPException(status_code=500, detail=f"Error loading file: {str(e)}")
 
 @app.get("/api/file-info")
@@ -421,6 +424,8 @@ async def get_file_info(filepath: str):
     except FileNotFoundError:
         raise HTTPException(status_code=404, detail="File not found")
     except Exception as e:
+        print(f"An unexpected error occurred in get_file_info: {e}")
+        traceback.print_exc()
         raise HTTPException(status_code=500, detail=f"Error getting file info: {str(e)}")
 
 
@@ -650,8 +655,8 @@ async def save_file(request: SaveFileRequest):
             print("Warning: Backup creation failed, but continuing with file save")
 
         # ファイルに保存 (リトライ処理付き)
-        max_retries = 5
-        retry_delay = 0.1  # 100ミリ秒
+        max_retries = 10
+        retry_delay = 0.2  # 200ミリ秒
         for attempt in range(max_retries):
             try:
                 with open(file_path, 'w', encoding='utf-8') as f:
