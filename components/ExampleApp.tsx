@@ -580,6 +580,16 @@ export default function ExampleApp({
     containerRef,
   });
 
+  // ファイルハッシュの変更をログに出力するuseEffect
+  const prevHashRef = useRef<string>();
+  useEffect(() => {
+    const prevHash = prevHashRef.current;
+    if (prevHash !== lastFileHash) {
+      console.log(`[Hash Change] Hash updated from ${prevHash || '(initial)'} to ${lastFileHash}`);
+    }
+    prevHashRef.current = lastFileHash;
+  }, [lastFileHash]);
+
   useEffect(() => {
     const filePath = getFilePathFromUrl();
     
@@ -742,13 +752,13 @@ export default function ExampleApp({
     const activeCount = elements.length;
     // 削除された要素が検知された場合は即座に変更と判定
     if (deletedCount > 0) {
-      console.log(`[Change Detection] Deleted elements detected: ${deletedCount} deleted, ${activeCount} active`);
+      // console.log(`[Change Detection] Deleted elements detected: ${deletedCount} deleted, ${activeCount} active`);
       return true;
     }
 
     // 要素数が変化した場合（削除や追加）は即座に変更と判定
     if (lastSavedData.count !== activeCount) {
-      console.log(`[Change Detection] Element count changed: ${lastSavedData.count} → ${activeCount}`);
+      // console.log(`[Change Detection] Element count changed: ${lastSavedData.count} → ${activeCount}`);
       return true;
     }
 
@@ -757,7 +767,7 @@ export default function ExampleApp({
     const hasChanged = currentSummaryString !== lastSavedElementsRef.current;
 
     if (hasChanged) {
-      console.log(`[Change Detection] Detailed change detected`);
+      // console.log(`[Change Detection] Detailed change detected`);
     }
 
     return hasChanged;
@@ -816,7 +826,7 @@ export default function ExampleApp({
 
     // 保存待機中でない場合のみログ出力
     if (!pendingSaveRef.current) {
-      console.log(`[Throttled Save] Scheduling save (elements: ${activeCount})`);
+      // console.log(`[Throttled Save] Scheduling save (elements: ${activeCount})`);
       pendingSaveRef.current = true;
     }
 

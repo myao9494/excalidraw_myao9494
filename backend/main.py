@@ -32,6 +32,13 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# API呼び出しをログ出力するミドルウェア
+@app.middleware("http")
+async def log_api_calls(request, call_next):
+    print(f"[API Call] {request.method} {request.url.path}")
+    response = await call_next(request)
+    return response
+
 # データモデル
 class ExcalidrawElement(BaseModel):
     type: str
