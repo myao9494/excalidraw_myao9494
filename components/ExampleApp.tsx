@@ -278,7 +278,7 @@ export default function ExampleApp({
   // 現在のフォルダパスを取得する関数（Windows/Unix両対応）
   const getCurrentFolder = useCallback(() => {
     if (!currentFilePath) {
-      console.log('getCurrentFolder: currentFilePath is null or undefined');
+      // console.log('getCurrentFolder: currentFilePath is null or undefined');
       return null;
     }
     
@@ -288,11 +288,11 @@ export default function ExampleApp({
     
     const result = lastSlashIndex !== -1 ? normalizedPath.substring(0, lastSlashIndex) : null;
     
-    console.log('getCurrentFolder Debug Info:');
-    console.log('  Original currentFilePath:', currentFilePath);
-    console.log('  Normalized path:', normalizedPath);
-    console.log('  Last slash index:', lastSlashIndex);
-    console.log('  Result folder path:', result);
+    // console.log('getCurrentFolder Debug Info:');
+    // console.log('  Original currentFilePath:', currentFilePath);
+    // console.log('  Normalized path:', normalizedPath);
+    // console.log('  Last slash index:', lastSlashIndex);
+    // console.log('  Result folder path:', result);
 
     return result;
   }, [currentFilePath]);
@@ -788,7 +788,7 @@ export default function ExampleApp({
     
     // 最後の保存から10秒経過していない場合は保存をスキップ
     if (now - lastSaveTimeRef.current < 10000) {
-      console.log(`[Save Throttle] Skipping save - only ${Math.round((now - lastSaveTimeRef.current) / 1000)}s since last save`);
+      // console.log(`[Save Throttle] Skipping save - only ${Math.round((now - lastSaveTimeRef.current) / 1000)}s since last save`);
       return;
     }
 
@@ -799,7 +799,7 @@ export default function ExampleApp({
     
     // 削除操作の場合でも10秒制限を適用
     if (deletedCount > 0) {
-      console.log(`[Throttled Save] Deletion detected: ${deletedCount} deleted elements, ${activeCount} active`);
+      // console.log(`[Throttled Save] Deletion detected: ${deletedCount} deleted elements, ${activeCount} active`);
       performSave(elements, appState, files);
       return;
     }
@@ -810,7 +810,7 @@ export default function ExampleApp({
       lastSavedData = JSON.parse(lastSavedElementsRef.current);
       // 要素数が減った場合（削除操作）でも10秒制限を適用
       if (lastSavedData.count > activeCount) {
-        console.log(`[Throttled Save] Element count deletion detected: ${lastSavedData.count} → ${activeCount}`);
+        // console.log(`[Throttled Save] Element count deletion detected: ${lastSavedData.count} → ${activeCount}`);
         performSave(elements, appState, files);
         return;
       }
@@ -980,9 +980,9 @@ export default function ExampleApp({
 
         const saveResult = await saveExcalidrawFile(currentFilePathValue, fileData, shouldForceBackup);
         if (saveResult?.success) {
-          console.log(
-            `[Save] File saved successfully (${elements.length} elements, ${deletedCount} deleted)`,
-          );
+          // console.log(
+          //   `[Save] File saved successfully (${elements.length} elements, ${deletedCount} deleted)`,
+          // );
           setLastSavedElements(currentSummaryString);
           lastSavedElementsRef.current = currentSummaryString;
           lastSaveTimeRef.current = now;
@@ -999,8 +999,21 @@ export default function ExampleApp({
           }
           return true;
         } else {
-          console.error(`Failed to save file: ${currentFilePathValue}`);
-          showSaveNotification('ファイルの保存に失敗しました', true);
+          // 保存失敗時のリトライ/強制保存ロジック
+          const retry = window.confirm("ファイルの保存に失敗しました。再試行しますか？");
+          if (retry) {
+            // console.log("Retrying save in 1 second...");
+            await new Promise(resolve => setTimeout(resolve, 1000));
+            return await performSave(elements, appState, files, forceBackup, skipConflictCheck);
+          } else {
+            const forceSaveConfirm = window.confirm("サーバー上のファイルをバックアップして、現在の内容で強制的に上書き保存しますか？");
+            if (forceSaveConfirm) {
+              // console.log("Attempting to force save...");
+              // 強制バックアップとコンフリクトチェックのスキップを有効にして再実行
+              return await performSave(elements, appState, files, true, true);
+            }
+          }
+          // ユーザーがすべてのダイアログをキャンセルした場合
           return false;
         }
       }
@@ -1086,7 +1099,7 @@ export default function ExampleApp({
     appState: any,
     files: any
   ) => {
-    console.log(`[Force Save] Executing forced save (elements: ${elements.length})`);
+    // console.log(`[Force Save] Executing forced save (elements: ${elements.length})`);
     
     // 10秒制限を無視して即座に保存
     lastSaveTimeRef.current = 0; // 制限をバイパス
@@ -1103,7 +1116,7 @@ export default function ExampleApp({
     appState: any,
     files: any
   ) => {
-    console.log(`[Manual Save] Executing manual save with forced backup (elements: ${elements.length})`);
+    // console.log(`[Manual Save] Executing manual save with forced backup (elements: ${elements.length})`);
     
     // 既存のperformSave関数を使用して手動保存を実行
     await performSave(elements, appState, files, true); // 強制バックアップフラグを渡す

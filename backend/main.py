@@ -235,7 +235,7 @@ def create_backup(filepath: str, force: bool = False) -> bool:
         if not force and existing_backups:
             latest_backup_time = max(existing_backups, key=lambda x: x[1])[1]
             if (current_timestamp - latest_backup_time) < 600:
-                print(f"Skip backup: Last backup was {int(current_timestamp - latest_backup_time)} seconds ago")
+                # print(f"Skip backup: Last backup was {int(current_timestamp - latest_backup_time)} seconds ago")
                 return True
         
         # 2週間以上古いバックアップを削除
@@ -244,7 +244,7 @@ def create_backup(filepath: str, force: bool = False) -> bool:
             if backup_time < two_weeks_ago:
                 try:
                     backup_file.unlink()
-                    print(f"Deleted old backup (>2 weeks): {backup_file}")
+                    # print(f"Deleted old backup (>2 weeks): {backup_file}")
                 except OSError as e:
                     print(f"Failed to delete old backup {backup_file}: {e}")
         
@@ -276,7 +276,7 @@ def create_backup(filepath: str, force: bool = False) -> bool:
                     for backup_file, _ in day_backups[:-1]:  # 最新以外
                         try:
                             backup_file.unlink()
-                            print(f"Deleted old daily backup: {backup_file}")
+                            # print(f"Deleted old daily backup: {backup_file}")
                         except OSError as e:
                             print(f"Failed to delete daily backup {backup_file}: {e}")
         
@@ -287,10 +287,10 @@ def create_backup(filepath: str, force: bool = False) -> bool:
         
         # バックアップを作成
         shutil.copy2(file_path, backup_path)
-        if force:
-            print(f"Forced backup created: {backup_path}")
-        else:
-            print(f"Backup created: {backup_path}")
+        # if force:
+        #     print(f"Forced backup created: {backup_path}")
+        # else:
+        #     print(f"Backup created: {backup_path}")
         
         return True
 
@@ -367,8 +367,8 @@ async def load_file(filepath: str):
         # URLデコードを明示的に行う（ダブルクォートを含む文字列に対応）
         import urllib.parse
         decoded_filepath = urllib.parse.unquote_plus(filepath)
-        print(f"[DEBUG] Original filepath: {filepath}")
-        print(f"[DEBUG] Decoded filepath: {decoded_filepath}")
+        # print(f"[DEBUG] Original filepath: {filepath}")
+        # print(f"[DEBUG] Decoded filepath: {decoded_filepath}")
         
         file_path = Path(decoded_filepath)
         
@@ -400,8 +400,8 @@ async def get_file_info(filepath: str):
         # URLデコードを明示的に行う（ダブルクォートを含む文字列に対応）
         import urllib.parse
         decoded_filepath = urllib.parse.unquote_plus(filepath)
-        print(f"[DEBUG] Original filepath: {filepath}")
-        print(f"[DEBUG] Decoded filepath: {decoded_filepath}")
+        # print(f"[DEBUG] Original filepath: {filepath}")
+        # print(f"[DEBUG] Decoded filepath: {decoded_filepath}")
         
         file_path = Path(decoded_filepath)
         
@@ -649,9 +649,24 @@ async def save_file(request: SaveFileRequest):
         if not backup_success:
             print("Warning: Backup creation failed, but continuing with file save")
 
-        # ファイルに保存
-        with open(file_path, 'w', encoding='utf-8') as f:
-            json.dump(data_to_save, f, ensure_ascii=False, indent=2)
+        # ファイルに保存 (リトライ処理付き)
+        max_retries = 5
+        retry_delay = 0.1  # 100ミリ秒
+        for attempt in range(max_retries):
+            try:
+                with open(file_path, 'w', encoding='utf-8') as f:
+                    json.dump(data_to_save, f, ensure_ascii=False, indent=2)
+                # 成功したらループを抜ける
+                # print(f"File saved successfully on attempt {attempt + 1}")
+                break
+            except PermissionError:
+                if attempt < max_retries - 1:
+                    # print(f"Warning: PermissionError on save (attempt {attempt + 1}/{max_retries}). Retrying in {retry_delay}s...")
+                    time.sleep(retry_delay)
+                else:
+                    # 最後のリトライでも失敗したらエラーを投げる
+                    # print(f"Error: Failed to save file after {max_retries} attempts due to PermissionError.")
+                    raise HTTPException(status_code=500, detail="Failed to save file due to a persistent file lock.")
 
         data_hash = compute_data_hash(data_to_save)
 
