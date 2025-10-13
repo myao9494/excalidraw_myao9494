@@ -30,9 +30,9 @@ import {
   saveBinaryFilesToLocalStorage,
   loadBinaryFilesFromLocalStorage
 } from "../utils/localStorage";
-import { 
-  getFilePathFromUrl, 
-  loadExcalidrawFile, 
+import {
+  getFilePathFromUrl,
+  loadExcalidrawFile,
   saveExcalidrawFile,
   getFileInfo,
   handleStickyNoteLink,
@@ -46,22 +46,68 @@ import "./ExampleApp.scss";
 
 import type { ResolvablePromise } from "../utils";
 
+import defaultTemplateRaw from "../shoki.excalidraw?raw";
+
+let DEFAULT_TEMPLATE_DATA: ExcalidrawFileData | null = null;
+
+try {
+  DEFAULT_TEMPLATE_DATA = JSON.parse(defaultTemplateRaw) as ExcalidrawFileData;
+} catch (error) {
+  console.error('テンプレートファイルの解析に失敗しました:', error);
+  DEFAULT_TEMPLATE_DATA = null;
+}
+
+const ensureTemplateForNewFile = async (targetPath: string): Promise<boolean> => {
+  if (!DEFAULT_TEMPLATE_DATA) {
+    console.error('テンプレートデータが利用できません。');
+    if (typeof window !== 'undefined' && window.alert) {
+      window.alert('テンプレートデータを読み込めなかったため、新規ファイルを作成できませんでした。');
+    }
+    return false;
+  }
+
+  try {
+    const templateClone = JSON.parse(JSON.stringify(DEFAULT_TEMPLATE_DATA)) as ExcalidrawFileData;
+    const saveResult = await saveExcalidrawFile(targetPath, templateClone, true);
+
+    if (!saveResult?.success) {
+      throw new Error(saveResult?.message || 'テンプレートデータの保存に失敗しました');
+    }
+
+    return true;
+  } catch (error) {
+    console.error('Error preparing new file from template:', error);
+    if (typeof window !== 'undefined' && window.alert) {
+      window.alert('テンプレートの保存に失敗したため、新規ファイルを作成できませんでした。');
+    }
+    return false;
+  }
+};
+
 /**
  * 新規ファイル作成用のダイアログを表示する
  */
-const showNewFileDialog = (currentFolder: string | null) => {
+const showNewFileDialog = async (currentFolder: string | null) => {
   const fileName = prompt("新しいファイル名を入力してください（拡張子なし）:");
-  if (fileName && fileName.trim()) {
-    const normalizedFolder = currentFolder ? normalizePath(currentFolder) : null;
-    const fullPath = normalizedFolder 
-      ? `${normalizedFolder}/${fileName.trim()}.excalidraw`
-      : `${fileName.trim()}.excalidraw`;
-    
-    // 新しいファイルは別タブで開く（パスをエンコードしてセッションを保持）
-    const encodedPath = encodeURIComponent(fullPath);
-    const targetUrl = `${window.location.origin}${window.location.pathname}?filepath=${encodedPath}`;
-    window.open(targetUrl, '_blank', 'noopener');
+  if (!fileName || !fileName.trim()) {
+    return;
   }
+
+  const normalizedFolder = currentFolder ? normalizePath(currentFolder) : null;
+  const fullPath = normalizedFolder
+    ? `${normalizedFolder}/${fileName.trim()}.excalidraw`
+    : `${fileName.trim()}.excalidraw`;
+  const normalizedFullPath = normalizePath(fullPath);
+
+  const prepared = await ensureTemplateForNewFile(normalizedFullPath);
+  if (!prepared) {
+    return;
+  }
+  
+  // 新しいファイルは別タブで開く（パスをエンコードしてセッションを保持）
+  const encodedPath = encodeURIComponent(normalizedFullPath);
+  const targetUrl = `${window.location.origin}${window.location.pathname}?filepath=${encodedPath}`;
+  window.open(targetUrl, '_blank', 'noopener');
 };
 
 /**
@@ -1292,7 +1338,7 @@ export default function ExampleApp({
         <div className="header-actions">
           <button 
             className="header-btn new-file-btn"
-            onClick={() => showNewFileDialog(getCurrentFolder())}
+            onClick={() => void showNewFileDialog(getCurrentFolder())}
             title="新規作成"
           >
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">

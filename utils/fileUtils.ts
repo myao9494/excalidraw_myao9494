@@ -352,7 +352,14 @@ export const loadExcalidrawFile = async (filePath: string): Promise<LoadFileResp
   }
 };
 
-export const getFileInfo = async (filePath: string): Promise<FileInfoResponse | null> => {
+interface GetFileInfoOptions {
+  silent?: boolean;
+}
+
+export const getFileInfo = async (
+  filePath: string,
+  options?: GetFileInfoOptions,
+): Promise<FileInfoResponse | null> => {
   try {
     const response = await fetch(`${API_BASE_URL}/api/file-info?filepath=${encodeURIComponent(filePath)}`);
     
@@ -367,7 +374,9 @@ export const getFileInfo = async (filePath: string): Promise<FileInfoResponse | 
     const result = await response.json();
     return result;
   } catch (error) {
-    console.error('Error getting file info:', error);
+    if (!options?.silent) {
+      console.error('Error getting file info:', error);
+    }
     return null;
   }
 };
