@@ -544,7 +544,7 @@ export const handleStickyNoteLink = async (linkUrl: string, currentFolder?: stri
       // Excalidrawファイルの場合は現在のアプリで開く
       const currentUrl = new URL(window.location.href);
       currentUrl.searchParams.set('filepath', trimmedLink);
-      window.location.href = currentUrl.toString();
+      window.open(currentUrl.toString(), '_blank', 'noopener');
     } else {
       // Excalidraw以外のファイルはバックエンド経由で開く
       const opened = await openFileViaBackend(trimmedLink);

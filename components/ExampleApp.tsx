@@ -57,9 +57,10 @@ const showNewFileDialog = (currentFolder: string | null) => {
       ? `${normalizedFolder}/${fileName.trim()}.excalidraw`
       : `${fileName.trim()}.excalidraw`;
     
-    // 新しいファイルのURLにリダイレクト（パスをエンコードする）
+    // 新しいファイルは別タブで開く（パスをエンコードしてセッションを保持）
     const encodedPath = encodeURIComponent(fullPath);
-    window.location.href = `${window.location.origin}${window.location.pathname}?filepath=${encodedPath}`;
+    const targetUrl = `${window.location.origin}${window.location.pathname}?filepath=${encodedPath}`;
+    window.open(targetUrl, '_blank', 'noopener');
   }
 };
 
