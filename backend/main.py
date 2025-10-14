@@ -14,6 +14,7 @@ import shutil
 import subprocess
 import hashlib
 import traceback
+import logging
 from datetime import datetime, timedelta
 from typing import Dict, List, Any, Optional
 
@@ -36,9 +37,19 @@ app.add_middleware(
 # API呼び出しをログ出力するミドルウェア
 @app.middleware("http")
 async def log_api_calls(request, call_next):
-    print(f"[API Call] {request.method} {request.url.path}")
+    timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    print(f"[{timestamp}] [API Call] {request.method} {request.url.path}")
     response = await call_next(request)
     return response
+
+
+@app.on_event("startup")
+async def configure_logging() -> None:
+    formatter = logging.Formatter("%(asctime)s %(levelname)s: %(message)s", "%Y-%m-%d %H:%M:%S")
+    for logger_name in ("uvicorn.access", "uvicorn.error"):
+        logger = logging.getLogger(logger_name)
+        for handler in logger.handlers:
+            handler.setFormatter(formatter)
 
 # データモデル
 class ExcalidrawElement(BaseModel):

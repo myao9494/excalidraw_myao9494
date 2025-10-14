@@ -418,7 +418,8 @@ export const saveExcalidrawFile = async (
       };
     }
 
-    console.log('File saved successfully:', result.message);
+    const timestamp = new Date().toISOString();
+    console.log(`[${timestamp}] File saved successfully:`, result.message);
     return result;
   } catch (error) {
     console.error('Error saving file:', error);

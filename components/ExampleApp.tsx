@@ -48,6 +48,8 @@ import type { ResolvablePromise } from "../utils";
 
 import defaultTemplateRaw from "../shoki.excalidraw?raw";
 
+const SAVE_DELAY_MS = 10000;
+
 let DEFAULT_TEMPLATE_DATA: ExcalidrawFileData | null = null;
 
 try {
@@ -769,9 +771,6 @@ export default function ExampleApp({
   const lastSaveTimeRef = useRef<number>(0);
   const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const lastCheckTimeRef = useRef<number>(0); // 外部ファイルチェック用のタイムスタンプ
-
-  // 変更検知用のRef
-  const lastChangeTimeRef = useRef<number>(0);
   const pendingSaveRef = useRef<boolean>(false);
 
   // 効率的な変更検知関数（削除要素も考慮）
@@ -815,82 +814,6 @@ export default function ExampleApp({
 
     return hasChanged;
   }, [excalidrawAPI, buildElementSummary]);
-
-  // デバウンス処理を行う保存関数（10秒間隔制限付き）
-  const debouncedSave = useCallback((
-    elements: NonDeletedExcalidrawElement[],
-    appState: any,
-    files: any
-  ) => {
-    // 重要な変更かどうかをチェック
-    if (!isSignificantChange(elements)) {
-      return; // 重要でない変更はスキップ
-    }
-
-    const now = Date.now();
-
-    // 変更検知時に、前回のチェックから5秒以上経過していたら外部更新をチェック
-    if (now - lastCheckTimeRef.current > 5000) {
-      lastCheckTimeRef.current = now;
-      checkFileUpdates();
-    }
-    
-    // 最後の保存から10秒経過していない場合は保存をスキップ
-    if (now - lastSaveTimeRef.current < 10000) {
-      // console.log(`[Save Throttle] Skipping save - only ${Math.round((now - lastSaveTimeRef.current) / 1000)}s since last save`);
-      return;
-    }
-
-    // 削除要素の検知
-    const allElements = excalidrawAPI?.getSceneElementsIncludingDeleted() || [];
-    const deletedCount = allElements.filter(el => el.isDeleted).length;
-    const activeCount = elements.length;
-    
-    // 削除操作の場合でも10秒制限を適用
-    if (deletedCount > 0) {
-      // console.log(`[Throttled Save] Deletion detected: ${deletedCount} deleted elements, ${activeCount} active`);
-      performSave(elements, appState, files);
-      return;
-    }
-
-    // 要素数の変化による削除検知（従来の方法も併用）
-    let lastSavedData;
-    try {
-      lastSavedData = JSON.parse(lastSavedElementsRef.current);
-      // 要素数が減った場合（削除操作）でも10秒制限を適用
-      if (lastSavedData.count > activeCount) {
-        // console.log(`[Throttled Save] Element count deletion detected: ${lastSavedData.count} → ${activeCount}`);
-        performSave(elements, appState, files);
-        return;
-      }
-    } catch {
-      // パース失敗時は通常の処理を実行
-    }
-
-    // 既存のタイマーをクリア
-    if (saveTimeoutRef.current) {
-      clearTimeout(saveTimeoutRef.current);
-      saveTimeoutRef.current = null;
-    }
-
-    // 保存待機中でない場合のみログ出力
-    if (!pendingSaveRef.current) {
-      // console.log(`[Throttled Save] Scheduling save (elements: ${activeCount})`);
-      pendingSaveRef.current = true;
-    }
-
-    lastChangeTimeRef.current = now;
-
-    // 3秒のデバウンス処理（細かい変更をまとめるため）
-    saveTimeoutRef.current = setTimeout(() => {
-      // 最後の変更から3秒経過していることを確認
-      if (now === lastChangeTimeRef.current || Date.now() - lastChangeTimeRef.current >= 2800) {
-        performSave(elements, appState, files);
-        pendingSaveRef.current = false;
-      }
-      saveTimeoutRef.current = null;
-    }, 3000);
-  }, [isSignificantChange, excalidrawAPI]);
 
   const applyLoadedFile = useCallback(
     (
@@ -1049,21 +972,8 @@ export default function ExampleApp({
             }
             return true;
           } else {
-            // 保存失敗時のリトライ/強制保存ロジック
-            const retry = window.confirm("ファイルの保存に失敗しました。再試行しますか？");
-            if (retry) {
-              // console.log("Retrying save in 1 second...");
-              await new Promise(resolve => setTimeout(resolve, 1000));
-              return await performSave(elements, appState, files, forceBackup, skipConflictCheck);
-            } else {
-              const forceSaveConfirm = window.confirm("サーバー上のファイルをバックアップして、現在の内容で強制的に上書き保存しますか？");
-              if (forceSaveConfirm) {
-                // console.log("Attempting to force save...");
-                // 強制バックアップとコンフリクトチェックのスキップを有効にして再実行
-                return await performSave(elements, appState, files, true, true);
-              }
-            }
-            // ユーザーがすべてのダイアログをキャンセルした場合
+            const message = saveResult?.message || 'ファイルの保存に失敗しました';
+            showSaveNotification(message, true);
             return false;
           }
         }
@@ -1142,6 +1052,60 @@ export default function ExampleApp({
     }
   }, [currentFilePath, excalidrawAPI, applyLoadedFile, performSave, showSaveNotification]);
 
+  // デバウンス処理を行う保存関数（10秒間隔制限付き）
+  // - 編集が発生しても10秒に1度だけ保存を許可する
+  // - 保存直前にExcalidraw APIから最新の状態を取り直し、不要な保存を避ける
+  // - 外部更新の監視もここで一定間隔ごとにトリガーする
+  const debouncedSave = useCallback((
+    elements: NonDeletedExcalidrawElement[],
+    appState: AppState,
+    files: any
+  ) => {
+    if (!isSignificantChange(elements)) {
+      return;
+    }
+
+    // 外部更新チェックは5秒間隔で実行し、編集中でも最新の変更を拾えるようにする
+    const now = Date.now();
+    if (now - lastCheckTimeRef.current > 5000) {
+      lastCheckTimeRef.current = now;
+      void checkFileUpdates();
+    }
+
+    // すでに保存待ちのタイマーが動いている場合は何もせず、10秒後の保存にまとめる
+    if (saveTimeoutRef.current) {
+      pendingSaveRef.current = true;
+      return;
+    }
+
+    pendingSaveRef.current = true;
+
+    saveTimeoutRef.current = setTimeout(async () => {
+      saveTimeoutRef.current = null;
+
+      const api = excalidrawAPI;
+      if (!api) {
+        pendingSaveRef.current = false;
+        return;
+      }
+
+      // 10秒経過時点で再度最新要素を取得し、保存すべきかを再評価
+      const currentElements = api.getSceneElements() as NonDeletedExcalidrawElement[];
+      if (!isSignificantChange(currentElements)) {
+        pendingSaveRef.current = false;
+        return;
+      }
+
+      const currentAppState = api.getAppState();
+      const currentFiles = api.getFiles();
+
+      pendingSaveRef.current = false;
+
+      // ここで初めて保存を実行。10秒以内の変更は一括で保存される
+      await performSave(currentElements, currentAppState, currentFiles);
+    }, SAVE_DELAY_MS);
+  }, [checkFileUpdates, excalidrawAPI, isSignificantChange, performSave]);
+
   // 強制保存関数（10秒制限を無視）
   const forceSave = useCallback(async (
     elements: NonDeletedExcalidrawElement[],
@@ -1190,21 +1154,21 @@ export default function ExampleApp({
   });
 
   // ページを離れる前に未保存の変更を警告する
-  useEffect(() => {
-    const handleBeforeUnload = (event: BeforeUnloadEvent) => {
-      if (excalidrawAPI && isSignificantChange(excalidrawAPI.getSceneElements())) {
-        // 未保存の変更がある場合、ブラウザ標準の確認ダイアログを表示
-        event.preventDefault();
-        event.returnValue = ''; // 古いブラウザ向けの互換性設定
-      }
-    };
+  // useEffect(() => {
+  //   const handleBeforeUnload = (event: BeforeUnloadEvent) => {
+  //     if (excalidrawAPI && isSignificantChange(excalidrawAPI.getSceneElements())) {
+  //       // 未保存の変更がある場合、ブラウザ標準の確認ダイアログを表示
+  //       event.preventDefault();
+  //       event.returnValue = ''; // 古いブラウザ向けの互換性設定
+  //     }
+  //   };
 
-    window.addEventListener('beforeunload', handleBeforeUnload);
+  //   window.addEventListener('beforeunload', handleBeforeUnload);
 
-    return () => {
-      window.removeEventListener('beforeunload', handleBeforeUnload);
-    };
-  }, [excalidrawAPI, isSignificantChange]);
+  //   return () => {
+  //     window.removeEventListener('beforeunload', handleBeforeUnload);
+  //   };
+  // }, [excalidrawAPI, isSignificantChange]);
 
   // コンポーネントのクリーンアップ時にタイマーをクリア
   useEffect(() => {
