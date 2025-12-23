@@ -320,6 +320,22 @@ class ListDirectoryResponse(BaseModel):
     error: Optional[str] = None
 
 
+def clean_surrogates(obj: Any) -> Any:
+    """
+    サロゲート文字を含むデータをクリーンアップする
+    JSONレスポンスでUnicodeEncodeErrorが発生するのを防ぐ
+    """
+    if isinstance(obj, str):
+        # サロゲート文字を置換してクリーンアップ
+        return obj.encode('utf-8', errors='surrogatepass').decode('utf-8', errors='replace')
+    elif isinstance(obj, dict):
+        return {k: clean_surrogates(v) for k, v in obj.items()}
+    elif isinstance(obj, list):
+        return [clean_surrogates(item) for item in obj]
+    else:
+        return obj
+
+
 def compute_data_hash(data: Any) -> str:
     """Returns a stable SHA-256 hash for predictable change detection."""
     canonical = json.dumps(
@@ -329,7 +345,8 @@ def compute_data_hash(data: Any) -> str:
         separators=(",", ":"),
         default=str,
     )
-    return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
+    # サロゲート文字を含む可能性があるため、errors="surrogatepass"を使用
+    return hashlib.sha256(canonical.encode("utf-8", errors="surrogatepass")).hexdigest()
 
 
 def load_json_file(file_path: Path) -> Any:
@@ -634,8 +651,10 @@ async def load_file(filepath: str):
 
                     data_hash = compute_data_hash(data)
 
+                    # サロゲート文字をクリーンアップしてレスポンスを返す
+                    clean_data = clean_surrogates(data)
                     return {
-                        "data": data,
+                        "data": clean_data,
                         "modified": 0,
                         "hash": data_hash,
                     }
@@ -651,9 +670,10 @@ async def load_file(filepath: str):
         data = load_json_file(file_path)
         data_hash = compute_data_hash(data)
 
-        # ファイルデータに更新情報を追加
+        # サロゲート文字をクリーンアップしてレスポンスを返す
+        clean_data = clean_surrogates(data)
         return {
-            "data": data,
+            "data": clean_data,
             "modified": 0,
             "hash": data_hash,
         }
@@ -675,14 +695,22 @@ async def get_file_info(filepath: str):
         decoded_filepath = urllib.parse.unquote_plus(filepath)
         # print(f"[DEBUG] Original filepath: {filepath}")
         # print(f"[DEBUG] Decoded filepath: {decoded_filepath}")
-        
+
         file_path = Path(decoded_filepath)
-        
+
         # ファイルが存在しない場合
         if not file_path.exists():
             raise HTTPException(status_code=404, detail="File not found")
-        
-        data = load_json_file(file_path)
+
+        # Obsidianファイルの場合はMarkdownから抽出
+        if is_obsidian_path(str(file_path)):
+            with open(file_path, "r", encoding="utf-8") as f:
+                markdown_content = f.read()
+            json_str = extract_json_from_markdown(markdown_content)
+            data = json.loads(json_str)
+        else:
+            data = load_json_file(file_path)
+
         data_hash = compute_data_hash(data)
 
         return {
@@ -690,7 +718,7 @@ async def get_file_info(filepath: str):
             "hash": data_hash,
             "exists": True,
         }
-    
+
     except FileNotFoundError:
         raise HTTPException(status_code=404, detail="File not found")
     except Exception as e:
@@ -859,6 +887,34 @@ async def open_file_get(filepath: str):
   </body>
 </html>"""
     return HTMLResponse(content=auto_close_html, status_code=200)
+
+
+@app.get("/api/open-url")
+async def open_url(url: str):
+    """
+    URLスキームをシステムのデフォルトハンドラーで開く
+    obsidian:// などのカスタムURLスキームに対応
+    """
+    try:
+        import urllib.parse
+        decoded_url = urllib.parse.unquote_plus(url)
+
+        # URLスキームの検証（基本的なチェック）
+        if not decoded_url or ':' not in decoded_url:
+            raise HTTPException(status_code=400, detail="Invalid URL format")
+
+        # システムのデフォルトハンドラーでURLを開く
+        await asyncio.to_thread(_launch_with_system, decoded_url)
+
+        return {
+            "success": True,
+            "url": decoded_url,
+            "message": f"Opened URL with system handler"
+        }
+    except Exception as e:
+        print(f"Error opening URL: {e}")
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=f"Failed to open URL: {str(e)}")
 
 
 @app.post("/api/run-command", response_model=RunCommandResponse)

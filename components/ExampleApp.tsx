@@ -22,10 +22,10 @@ import initialData from "../initialData";
 import { resolvablePromise } from "../utils";
 import { useKeyboardShortcuts } from "../hooks/useKeyboardShortcuts";
 import { useDragAndDrop } from "../hooks/useDragAndDrop";
-import { 
-  saveElementsToLocalStorage, 
-  loadElementsFromLocalStorage, 
-  saveAppStateToLocalStorage, 
+import {
+  saveElementsToLocalStorage,
+  loadElementsFromLocalStorage,
+  saveAppStateToLocalStorage,
   loadAppStateFromLocalStorage,
   saveBinaryFilesToLocalStorage,
   loadBinaryFilesFromLocalStorage
@@ -38,6 +38,7 @@ import {
   handleStickyNoteLink,
   openFileViaBackend,
   exportToSvgFile,
+  isExcalidrawFile,
   type ExcalidrawFileData
 } from "../utils/fileUtils";
 import { generateTabTitle } from "../utils/titleUtils";
@@ -105,7 +106,7 @@ const showNewFileDialog = async (currentFolder: string | null) => {
   if (!prepared) {
     return;
   }
-  
+
   // 新しいファイルは別タブで開く（パスをエンコードしてセッションを保持）
   const encodedPath = encodeURIComponent(normalizedFullPath);
   const targetUrl = `${window.location.origin}${window.location.pathname}?filepath=${encodedPath}`;
@@ -187,14 +188,14 @@ const getTypeLabel = (entry: DirectoryBrowserEntry): string => {
 const showOpenFileDialog = (currentFolder: string | null) => {
   // 現在のフォルダまたはブラウザのカレントディレクトリを使用
   let folderPath = currentFolder ? normalizePath(currentFolder) : '.';
-  
+
   // URLを手動で構築
   const currentHost = window.location.hostname;
   const baseUrl = `http://${currentHost}:5001`;
   const encodedPath = encodeURIComponent(folderPath);
   const filterParam = 'filter=md,svg,csv,pdf,ipynb,py,docx,xlsx,xlsm,pptx,msg,lnk,excalidraw,excalidraw.svg,excalidraw.png';
   const fileViewerUrl = `${baseUrl}/fullpath?path=${encodedPath}&${filterParam}`;
-  
+
   // ファイルビューアーを新しいタブで開く
   window.open(fileViewerUrl, '_blank');
 };
@@ -205,7 +206,7 @@ const showOpenFileDialog = (currentFolder: string | null) => {
 const openInCode = async (currentFolder: string | null) => {
   // 現在のフォルダまたはブラウザのカレントディレクトリを使用
   let folderPath = currentFolder ? normalizePath(currentFolder) : '.';
-  
+
   try {
     const currentHost = window.location.hostname;
     const response = await fetch(`http://${currentHost}:5001/open-in-code2`, {
@@ -217,9 +218,9 @@ const openInCode = async (currentFolder: string | null) => {
         path: folderPath
       })
     });
-    
+
     const result = await response.json();
-    
+
     if (result.success) {
       console.log('codeで開きました:', folderPath);
     } else {
@@ -289,7 +290,7 @@ export default function ExampleApp({
     convertToExcalidrawElements,
     viewportCoordsToSceneCoords,
   } = excalidrawLib;
-  
+
   const appRef = useRef<any>(null);
 
   const initialStatePromiseRef = useRef<{
@@ -302,11 +303,11 @@ export default function ExampleApp({
 
   const [excalidrawAPI, setExcalidrawAPI] =
     useState<ExcalidrawImperativeAPI | null>(null);
-  
+
   const [currentFilePath, setCurrentFilePath] = useState<string | null>(null);
   const [lastSavedElements, setLastSavedElements] = useState<string>('');
   const [lastFileHash, setLastFileHash] = useState<string>('');
-  const [saveNotification, setSaveNotification] = useState<{message: string; isError?: boolean} | null>(null);
+  const [saveNotification, setSaveNotification] = useState<{ message: string; isError?: boolean } | null>(null);
   const [isFileBrowserOpen, setIsFileBrowserOpen] = useState<boolean>(false);
   const [isFileBrowserLoading, setIsFileBrowserLoading] = useState<boolean>(false);
   const [fileBrowserEntries, setFileBrowserEntries] = useState<DirectoryBrowserEntry[]>([]);
@@ -315,10 +316,10 @@ export default function ExampleApp({
   const [fileBrowserError, setFileBrowserError] = useState<string | null>(null);
   const [fileBrowserSelectedEntry, setFileBrowserSelectedEntry] = useState<DirectoryBrowserEntry | null>(null);
   const [fileBrowserInputValue, setFileBrowserInputValue] = useState<string>('');
-  
+
   // 保存通知を表示する関数
   const showSaveNotification = useCallback((message: string, isError: boolean = false) => {
-    setSaveNotification({message, isError});
+    setSaveNotification({ message, isError });
     setTimeout(() => {
       setSaveNotification(null);
     }, 2000);
@@ -330,13 +331,13 @@ export default function ExampleApp({
       // console.log('getCurrentFolder: currentFilePath is null or undefined');
       return null;
     }
-    
+
     // Windows と Unix の両方のパス区切り文字に対応
     const normalizedPath = currentFilePath.replace(/\\/g, '/');
     const lastSlashIndex = normalizedPath.lastIndexOf('/');
-    
+
     const result = lastSlashIndex !== -1 ? normalizedPath.substring(0, lastSlashIndex) : null;
-    
+
     // console.log('getCurrentFolder Debug Info:');
     // console.log('  Original currentFilePath:', currentFilePath);
     // console.log('  Normalized path:', normalizedPath);
@@ -382,7 +383,8 @@ export default function ExampleApp({
         if (entry.isDir) {
           return true;
         }
-        return entry.name.toLowerCase().endsWith('.excalidraw');
+        const nameLower = entry.name.toLowerCase();
+        return nameLower.endsWith('.excalidraw') || nameLower.endsWith('.excalidraw.md');
       });
 
       setFileBrowserEntries(filteredEntries);
@@ -513,7 +515,7 @@ export default function ExampleApp({
     }
     return true;
   }, [fileBrowserInputValue, fileBrowserSelectedEntry, isFileBrowserLoading]);
-  
+
   // SVGファイルとして保存する関数
   const exportSvg = useCallback(async (currentFolder: string | null) => {
     if (!excalidrawAPI) {
@@ -525,10 +527,10 @@ export default function ExampleApp({
       const elements = excalidrawAPI.getSceneElements();
       const appState = excalidrawAPI.getAppState();
       const files = excalidrawAPI.getFiles();
-      
+
       // 選択された要素を取得
       const selectedElements = elements.filter(element => appState.selectedElementIds[element.id]);
-      
+
       const success = await exportToSvgFile(
         elements,
         appState,
@@ -536,7 +538,7 @@ export default function ExampleApp({
         currentFolder,
         selectedElements.length > 0 ? selectedElements : null
       );
-      
+
       if (success) {
         console.log('SVGファイルの保存に成功しました');
       } else {
@@ -546,21 +548,21 @@ export default function ExampleApp({
       console.error('SVGエクスポート中にエラーが発生しました:', error);
     }
   }, [excalidrawAPI]);
-  
+
   // デバウンス処理用のstate（削除済み - Refを使用）
-  
+
   // 最新の値を保持するためのref
   const currentFilePathRef = useRef<string | null>(null);
   const lastSavedElementsRef = useRef<string>('');
   const lastFileHashRef = useRef<string>('');
   const externalUpdateNotifiedHashRef = useRef<string>('');
   const saveInProgressRef = useRef<boolean>(false);
-  
+
   // refの値を更新
   useEffect(() => {
     currentFilePathRef.current = currentFilePath;
   }, [currentFilePath]);
-  
+
   useEffect(() => {
     lastSavedElementsRef.current = lastSavedElements;
   }, [lastSavedElements]);
@@ -611,7 +613,7 @@ export default function ExampleApp({
     },
     [],
   );
-  
+
   // ドラッグ&ドロップ用のコンテナRef
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -636,18 +638,18 @@ export default function ExampleApp({
 
   useEffect(() => {
     const filePath = getFilePathFromUrl();
-    
+
     // URLパラメータでファイルパスが指定されている場合の処理
     if (filePath) {
       // Excalidrawファイル以外の場合はfile viewerを新しいタブで開く
-      if (!filePath.toLowerCase().endsWith('.excalidraw')) {
+      if (!isExcalidrawFile(filePath)) {
         void openFileViaBackend(filePath);
         // URLパラメータをクリアして元の状態に戻す
         window.history.replaceState({}, document.title, window.location.pathname);
         return;
       }
     }
-    
+
     setCurrentFilePath(filePath);
   }, []);
 
@@ -667,10 +669,10 @@ export default function ExampleApp({
     if (!excalidrawAPI) {
       return;
     }
-    
+
     const loadData = async () => {
       let dataToLoad;
-      
+
       if (currentFilePath) {
         // ファイルパスが指定されている場合はファイルから読み込み
         const fileResult = await loadExcalidrawFile(currentFilePath);
@@ -682,7 +684,7 @@ export default function ExampleApp({
             appState: fileData.appState ? { ...initialData.appState, ...fileData.appState } : initialData.appState,
             files: fileData.files || {},
           };
-          
+
           const resolvedHash = hash || '';
           setLastFileHash(resolvedHash);
           lastFileHashRef.current = resolvedHash;
@@ -731,14 +733,14 @@ export default function ExampleApp({
         lastFileHashRef.current = '';
         externalUpdateNotifiedHashRef.current = '';
       }
-      
+
       // ライブラリファイルをロードしてlibraryItemsに追加
       try {
         const response = await fetch('/excalidraw_lib/my_lib.excalidrawlib');
         if (response.ok) {
           const libraryContent = await response.text();
           const libraryData = JSON.parse(libraryContent);
-          
+
           if (libraryData.libraryItems) {
             // 各ライブラリアイテムと要素のIDを新しい一意のIDに更新
             const updatedLibraryItems = libraryData.libraryItems.map((item: any) => ({
@@ -751,7 +753,7 @@ export default function ExampleApp({
                 groupIds: element.groupIds?.map(() => `group-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`)
               }))
             }));
-            
+
             dataToLoad.libraryItems = updatedLibraryItems;
             console.log(`ライブラリを読み込みました: ${updatedLibraryItems.length} アイテム`);
           }
@@ -759,11 +761,11 @@ export default function ExampleApp({
       } catch (error) {
         console.warn('ライブラリファイルの読み込みに失敗しました:', error);
       }
-      
+
       //@ts-ignore
       initialStatePromiseRef.current.promise.resolve(dataToLoad);
     };
-    
+
     loadData();
   }, [buildElementSummary, convertToExcalidrawElements, currentFilePath, excalidrawAPI]);
 
@@ -780,7 +782,7 @@ export default function ExampleApp({
 
     // 削除された要素も含めて全要素を取得
     const allElements = excalidrawAPI?.getSceneElementsIncludingDeleted() || [];
-    
+
     // 削除操作の特別な検知：要素数の変化を最優先でチェック
     let lastSavedData;
     try {
@@ -980,7 +982,7 @@ export default function ExampleApp({
       } else {
         // ローカルストレージに保存
         saveElementsToLocalStorage(elements);
-        
+
         // 画像データも保存
         if (files) {
           saveBinaryFilesToLocalStorage(files);
@@ -988,7 +990,7 @@ export default function ExampleApp({
 
         // アプリケーション状態も保存
         saveAppStateToLocalStorage(stateToSave);
-        
+
         lastSaveTimeRef.current = now;
         return true;
       }
@@ -1113,10 +1115,10 @@ export default function ExampleApp({
     files: any
   ) => {
     // console.log(`[Force Save] Executing forced save (elements: ${elements.length})`);
-    
+
     // 10秒制限を無視して即座に保存
     lastSaveTimeRef.current = 0; // 制限をバイパス
-    
+
     await performSave(elements, appState, files);
 
     // 保存後に実際の時刻を設定
@@ -1130,7 +1132,7 @@ export default function ExampleApp({
     files: any
   ) => {
     // console.log(`[Manual Save] Executing manual save with forced backup (elements: ${elements.length})`);
-    
+
     // 既存のperformSave関数を使用して手動保存を実行
     await performSave(elements, appState, files, true); // 強制バックアップフラグを渡す
     showSaveNotification('保存しました');
@@ -1183,20 +1185,20 @@ export default function ExampleApp({
   // ライブラリ変更時の自動保存処理
   const handleLibraryChange = useCallback(async (libraryItems: any[]) => {
     console.log(`ライブラリが変更されました: ${libraryItems.length} アイテム`);
-    
+
     // 空のライブラリデータの保存を防止
     if (!libraryItems || libraryItems.length === 0) {
       console.warn('空のライブラリデータの保存をスキップしました');
       return;
     }
-    
+
     // 既存のライブラリファイルの内容を確認
     try {
       const currentResponse = await fetch('/excalidraw_lib/my_lib.excalidrawlib');
       if (currentResponse.ok) {
         const currentContent = await currentResponse.text();
         const currentData = JSON.parse(currentContent);
-        
+
         // 現在のファイルにデータがあり、新しいデータが空の場合は保存しない
         if (currentData.libraryItems && currentData.libraryItems.length > 0 && libraryItems.length === 0) {
           console.warn('既存のライブラリデータを保護するため、空のデータでの上書きをスキップしました');
@@ -1206,7 +1208,7 @@ export default function ExampleApp({
     } catch (error) {
       console.warn('既存ライブラリファイルの確認に失敗:', error);
     }
-    
+
     try {
       const libraryData = {
         type: "excalidrawlib",
@@ -1214,7 +1216,7 @@ export default function ExampleApp({
         source: window.location.origin,
         libraryItems
       };
-      
+
       const response = await fetch(`http://${window.location.hostname}:8008/save-library`, {
         method: 'POST',
         headers: {
@@ -1225,7 +1227,7 @@ export default function ExampleApp({
           data: libraryData
         })
       });
-      
+
       if (response.ok) {
         console.log('ライブラリが自動保存されました');
       } else {
@@ -1296,11 +1298,11 @@ export default function ExampleApp({
           {saveNotification.message}
         </div>
       )}
-      
+
       {/* カスタムヘッダー */}
       <div className="custom-header">
         <div className="header-actions">
-          <button 
+          <button
             className="header-btn new-file-btn"
             onClick={() => void showNewFileDialog(getCurrentFolder())}
             title="新規作成"
@@ -1324,7 +1326,7 @@ export default function ExampleApp({
               <path d="M17.5 16.5 21 13 17.5 9.5" />
             </svg>
           </button>
-          <button 
+          <button
             type="button"
             className="header-btn open-folder-btn"
             onClick={(e) => {
@@ -1338,7 +1340,7 @@ export default function ExampleApp({
               <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path>
             </svg>
           </button>
-          <button 
+          <button
             className="header-btn open-explorer-btn"
             onClick={() => openInFileExplorer(getCurrentFolder())}
             title="フォルダを開く"
@@ -1348,7 +1350,7 @@ export default function ExampleApp({
               <polyline points="13 12 16 15 21 10" />
             </svg>
           </button>
-          <button 
+          <button
             className="header-btn open-code-btn"
             onClick={() => openInCode(getCurrentFolder())}
             title="codeで開く"
@@ -1358,7 +1360,7 @@ export default function ExampleApp({
               <polyline points="8,6 2,12 8,18"></polyline>
             </svg>
           </button>
-          <button 
+          <button
             className="header-btn manual-save-btn"
             onClick={() => {
               if (excalidrawAPI) {
@@ -1376,7 +1378,7 @@ export default function ExampleApp({
               <polyline points="7,3 7,8 15,8"></polyline>
             </svg>
           </button>
-          <button 
+          <button
             className="header-btn export-svg-btn"
             onClick={() => exportSvg(getCurrentFolder())}
             title="SVGで保存"

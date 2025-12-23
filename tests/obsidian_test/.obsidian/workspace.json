@@ -1,0 +1,203 @@
+{
+  "main": {
+    "id": "33f264d2bc83eafd",
+    "type": "split",
+    "children": [
+      {
+        "id": "1b3988b8f7b2c15e",
+        "type": "tabs",
+        "children": [
+          {
+            "id": "5a3b4740754b41e5",
+            "type": "leaf",
+            "state": {
+              "type": "excalidraw",
+              "state": {
+                "file": "test.excalidraw.md"
+              },
+              "icon": "excalidraw-icon",
+              "title": "test.excalidraw"
+            }
+          }
+        ]
+      }
+    ],
+    "direction": "vertical"
+  },
+  "left": {
+    "id": "94100a56e4656ca4",
+    "type": "split",
+    "children": [
+      {
+        "id": "b10e4ce6bbf02d99",
+        "type": "tabs",
+        "children": [
+          {
+            "id": "b01190d2e0f48286",
+            "type": "leaf",
+            "state": {
+              "type": "file-explorer",
+              "state": {
+                "sortOrder": "alphabetical",
+                "autoReveal": false
+              },
+              "icon": "lucide-folder-closed",
+              "title": "ファイルエクスプローラ"
+            }
+          },
+          {
+            "id": "cf448945757d642d",
+            "type": "leaf",
+            "state": {
+              "type": "search",
+              "state": {
+                "query": "",
+                "matchingCase": false,
+                "explainSearch": false,
+                "collapseAll": false,
+                "extraContext": false,
+                "sortOrder": "alphabetical"
+              },
+              "icon": "lucide-search",
+              "title": "検索"
+            }
+          },
+          {
+            "id": "cf234f2ec5b5f188",
+            "type": "leaf",
+            "state": {
+              "type": "bookmarks",
+              "state": {},
+              "icon": "lucide-bookmark",
+              "title": "ブックマーク"
+            }
+          }
+        ]
+      }
+    ],
+    "direction": "horizontal",
+    "width": 300
+  },
+  "right": {
+    "id": "9e97b0900071de36",
+    "type": "split",
+    "children": [
+      {
+        "id": "7d5932d6489589cb",
+        "type": "tabs",
+        "children": [
+          {
+            "id": "8973d1b7f7345b0f",
+            "type": "leaf",
+            "state": {
+              "type": "backlink",
+              "state": {
+                "file": "test.excalidraw.md",
+                "collapseAll": false,
+                "extraContext": false,
+                "sortOrder": "alphabetical",
+                "showSearch": false,
+                "searchQuery": "",
+                "backlinkCollapsed": false,
+                "unlinkedCollapsed": true
+              },
+              "icon": "links-coming-in",
+              "title": "test.excalidrawへのバックリンク"
+            }
+          },
+          {
+            "id": "6196a9dd1d832a0a",
+            "type": "leaf",
+            "state": {
+              "type": "outgoing-link",
+              "state": {
+                "file": "test.excalidraw.md",
+                "linksCollapsed": false,
+                "unlinkedCollapsed": true
+              },
+              "icon": "links-going-out",
+              "title": "test.excalidrawからのアウトゴーイングリンク"
+            }
+          },
+          {
+            "id": "ca7318f41fa70ad0",
+            "type": "leaf",
+            "state": {
+              "type": "tag",
+              "state": {
+                "sortOrder": "frequency",
+                "useHierarchy": true,
+                "showSearch": false,
+                "searchQuery": ""
+              },
+              "icon": "lucide-tags",
+              "title": "タグ"
+            }
+          },
+          {
+            "id": "1475b8633fcc0e0a",
+            "type": "leaf",
+            "state": {
+              "type": "all-properties",
+              "state": {
+                "sortOrder": "frequency",
+                "showSearch": false,
+                "searchQuery": ""
+              },
+              "icon": "lucide-archive",
+              "title": "すべてのプロパティ"
+            }
+          },
+          {
+            "id": "2c3ac46e9a57eb75",
+            "type": "leaf",
+            "state": {
+              "type": "outline",
+              "state": {
+                "file": "test.excalidraw.md",
+                "followCursor": false,
+                "showSearch": false,
+                "searchQuery": ""
+              },
+              "icon": "lucide-list",
+              "title": "test.excalidrawのアウトライン"
+            }
+          }
+        ]
+      }
+    ],
+    "direction": "horizontal",
+    "width": 300,
+    "collapsed": true
+  },
+  "left-ribbon": {
+    "hiddenItems": {
+      "switcher:クイックスイッチャーを開く": false,
+      "graph:グラフビューを開く": false,
+      "canvas:新規キャンバスを作成": false,
+      "daily-notes:今日のデイリーノートを開く": false,
+      "templates:テンプレートを挿入": false,
+      "command-palette:コマンドパレットを開く": false,
+      "bases:Create new base": false,
+      "obsidian-excalidraw-plugin:New drawing": false
+    }
+  },
+  "active": "5a3b4740754b41e5",
+  "lastOpenFiles": [
+    "test.excalidraw.md",
+    "あらrh.excalidraw.md",
+    "uncompressed_test.excalidraw.md",
+    "save_test.excalidraw.md",
+    "e4b789b5.png",
+    "Excalidraw/test_save.excalidraw.md",
+    "Excalidraw/9a37ea52.png",
+    "48b39a12.png",
+    "Pasted Image 20251223075924_880.png",
+    "Excalidraw/Drawing 2025-12-23 07.13.45.excalidraw.md",
+    "Excalidraw/Drawing 2025-12-23 07.59.12.excalidraw.md",
+    "Excalidraw/Drawing 2025-12-23 07.11.28.excalidraw.md",
+    "real_test.excalidraw.md",
+    "Excalidraw/Drawing 2025-12-23 07.11.05.excalidraw.md",
+    "Excalidraw"
+  ]
+}

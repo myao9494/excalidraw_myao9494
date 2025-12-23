@@ -759,3 +759,42 @@ document.addEventListener('drop', handleDrop, true);
 - 画像は外部ファイルとして管理
 - Obsidianで画像が正常に表示される
 - Wikilink形式でObsidian標準に準拠
+
+### 8.5 Obsidian URLスキーム連携
+**機能概要**
+- `obsidian://` URLスキームをシステムのデフォルトハンドラーで開く機能
+- macOS、Windows、Linuxに対応
+
+**APIエンドポイント**
+```
+GET /api/open-url?url=<URLエンコードされたURL>
+```
+
+**使用例**
+```javascript
+// ObsidianでファイルをVault内で開く
+const obsidianUrl = "obsidian://open?vault=obsidian_test&file=あらrh.excalidraw";
+const encodedUrl = encodeURIComponent(obsidianUrl);
+await fetch(`http://localhost:8008/api/open-url?url=${encodedUrl}`);
+```
+
+**動作詳細**
+
+#### プラットフォーム別処理
+- **macOS**: `open "obsidian://..."` コマンドを実行
+- **Windows**: `os.startfile("obsidian://...")` を実行
+- **Linux**: `xdg-open "obsidian://..."` コマンドを実行
+
+#### 技術実装
+```python
+@app.get("/api/open-url")
+async def open_url(url: str):
+    decoded_url = urllib.parse.unquote_plus(url)
+    await asyncio.to_thread(_launch_with_system, decoded_url)
+    return {"success": True, "url": decoded_url}
+```
+
+**効果**
+- フロントエンドからObsidianアプリを直接起動可能
+- Vault内のファイルをネイティブObsidianエディタで開ける
+- クロスプラットフォーム対応により、どのOSでも動作

@@ -525,8 +525,8 @@ export const saveEmail = async (
  */
 export const isExcalidrawFile = (filePath: string): boolean => {
   if (!filePath) return false;
-  const extension = filePath.toLowerCase().split('.').pop();
-  return extension === 'excalidraw';
+  const pathLower = filePath.toLowerCase();
+  return pathLower.endsWith('.excalidraw') || pathLower.endsWith('.excalidraw.md');
 };
 
 /**
@@ -540,6 +540,30 @@ export const handleStickyNoteLink = async (linkUrl: string, currentFolder?: stri
 
     if (CMD_LINK_PATTERN.test(trimmedLink)) {
       await runCommandViaBackend(trimmedLink, currentFolder); // ← フォルダを渡す
+      return;
+    }
+
+    // Obsidian URLスキームの場合はバックエンド経由で開く
+    if (trimmedLink.startsWith('obsidian://')) {
+      try {
+        const encodedUrl = encodeURIComponent(trimmedLink);
+        const response = await fetch(`${API_BASE_URL}/api/open-url?url=${encodedUrl}`);
+
+        if (response.ok) {
+          const result = await response.json();
+          console.log('Obsidianで開きました:', result.url);
+        } else {
+          console.error('Obsidian URLを開けませんでした:', response.status);
+          if (typeof window !== 'undefined' && window.alert) {
+            window.alert('Obsidianを開くことができませんでした。');
+          }
+        }
+      } catch (error) {
+        console.error('Error opening Obsidian URL:', error);
+        if (typeof window !== 'undefined' && window.alert) {
+          window.alert('Obsidianを開く際にエラーが発生しました。');
+        }
+      }
       return;
     }
 

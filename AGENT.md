@@ -87,8 +87,25 @@ npm start
 ### 3. File Operation Testing
 
 ```
+# 通常の Excalidraw ファイル
 http://localhost:3001/?filepath=/path/to/your/file.excalidraw
+
+# Obsidian 互換ファイル (パスに obsidian を含める)
+http://localhost:3001/?filepath=/path/to/obsidian/your/file.excalidraw.md
 ```
+
+## Obsidian Compatibility
+
+### 1. Automatic Detection
+Path containing `obsidian` (case-insensitive) triggers Obsidian mode.
+
+### 2. Migration
+Saving a `.excalidraw` file in an `obsidian` folder automatically converts it to `.excalidraw.md`.
+
+### 3. Format
+- **Extension**: `.excalidraw.md` (Markdown with embedded JSON).
+- **Compression**: JSON is compressed using `lz-string` for Obsidian plugin compatibility.
+- **Backup**: Redundant backups are disabled for Obsidian files.
 
 ## Production Build and Offline Usage
 
