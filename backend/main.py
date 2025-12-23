@@ -17,6 +17,138 @@ import traceback
 import logging
 from datetime import datetime, timedelta
 from typing import Dict, List, Any, Optional
+import re
+from lzstring import LZString
+
+def is_obsidian_path(filepath: str) -> bool:
+    """
+    パスがObsidian管理下にあるか判定する。
+    - パスに 'obsidian' (case-insensitive) が含まれる
+    - 拡張子が .excalidraw.md または .excalidraw
+    """
+    path_str = str(filepath).lower()
+    if 'obsidian' not in path_str:
+        return False
+    
+    # 移行対象の .excalidraw, および正当な .excalidraw.md を対象とする
+    return path_str.endswith('.excalidraw.md') or path_str.endswith('.excalidraw')
+
+def extract_json_from_markdown(content: str) -> str:
+    """
+    MarkdownからExcalidraw JSONを抽出する。
+    圧縮されている場合は解凍する。
+    """
+    # ```compressed-json ... ``` または ```json ... ``` ブロックを探す
+    match = re.search(r'```(?:compressed-json|json)\n(.*?)\n```', content, re.DOTALL)
+    if not match:
+        raise ValueError("No JSON block found in Markdown")
+
+    # 改行を含む可能性があるので、すべての空白文字（改行含む）を除去
+    json_content = match.group(1).strip()
+
+    # JSONとしてパースできるか試みる (非圧縮)
+    try:
+        json.loads(json_content)
+        return json_content
+    except json.JSONDecodeError:
+        pass
+
+    # パースできなければ圧縮されているとみなして解凍を試みる
+    # 圧縮データから改行を除去（Obsidianは複数行に分割して保存する）
+    try:
+        lz = LZString()
+        # すべての改行と空白を除去
+        compressed_clean = ''.join(json_content.split())
+        decompressed = lz.decompressFromBase64(compressed_clean)
+        if not decompressed:
+             # 解凍結果が空、または失敗した場合
+            raise ValueError("Failed to decompress JSON content")
+        # 解凍結果が正当なJSONかチェック
+        json.loads(decompressed)
+        return decompressed
+    except Exception as e:
+        raise ValueError(f"Failed to extract/decompress JSON: {e}")
+
+def embed_json_into_markdown(original_content: Optional[str], json_str: str, image_files: Optional[dict] = None) -> str:
+    """
+    MarkdownにJSONを埋め込む。
+    - JSONはLZStringで圧縮する。
+    - original_contentがある場合は、既存のJSONブロックを置換する。
+    - ない場合は新規テンプレートを作成する。
+    - image_filesがある場合、## Embedded Filesセクションを追加
+    """
+    lz = LZString()
+    compressed = lz.compressToBase64(json_str)
+
+    # Embedded Filesセクションの生成
+    embedded_files_section = ""
+    if image_files:
+        embedded_files_section = "## Embedded Files\n"
+        for file_id, filename in image_files.items():
+            embedded_files_section += f"{file_id}: [[{filename}]]\n"
+        embedded_files_section += "\n"
+
+    template = """---
+
+excalidraw-plugin: parsed
+tags: [excalidraw]
+
+---
+==⚠  Switch to EXCALIDRAW VIEW in the MORE OPTIONS menu of this document. ⚠== You can decompress Drawing data with the command palette: 'Decompress current Excalidraw file'. For more info check in plugin settings under 'Saving'
+
+
+# Excalidraw Data
+
+## Text Elements
+{EMBEDDED_FILES}%%
+## Drawing
+```compressed-json
+{COMPRESSED_DATA}
+```
+%%"""
+
+    if not original_content:
+        content = template.replace("{COMPRESSED_DATA}", compressed)
+        content = content.replace("{EMBEDDED_FILES}", embedded_files_section)
+        return content
+
+    # 既存コンテンツがある場合、JSONブロックとEmbedded Filesセクションを更新
+
+    # 1. JSONブロックを置換（compressed-jsonとjsonの両方に対応）
+    json_pattern = r'(```(?:compressed-json|json)\n)(.*?)(\n```)'
+
+    # 既存のJSONブロックがあるか確認
+    if not re.search(json_pattern, original_content, re.DOTALL):
+        # 構造が壊れているか、まだブロックがない場合、末尾に追加
+        content = original_content + f"\n\n%%\n## Drawing\n```compressed-json\n{compressed}\n```\n%%\n"
+    else:
+        # JSONブロックを置換
+        def replace_json(match):
+            return f"{match.group(1)}{compressed}{match.group(3)}"
+        content = re.sub(json_pattern, replace_json, original_content, flags=re.DOTALL)
+
+    # 2. Embedded Filesセクションを更新
+    if image_files:
+        embedded_files_text = "## Embedded Files\n"
+        for file_id, filename in image_files.items():
+            embedded_files_text += f"{file_id}: [[{filename}]]\n"
+        embedded_files_text += "\n"
+
+        # 既存のEmbedded Filesセクションを探す
+        embedded_pattern = r'## Embedded Files\n(.*?)\n(?=##|%%)'
+        if re.search(embedded_pattern, content, re.DOTALL):
+            # 既存セクションを置換
+            content = re.sub(embedded_pattern, embedded_files_text, content, flags=re.DOTALL)
+        else:
+            # Text Elementsの後、%%の前に挿入
+            text_elements_pattern = r'(## Text Elements\n)'
+            if re.search(text_elements_pattern, content):
+                content = re.sub(text_elements_pattern, f"\\1{embedded_files_text}", content)
+            else:
+                # Text Elementsもない場合、%%の前に挿入
+                content = content.replace("%%\n## Drawing", f"{embedded_files_text}%%\n## Drawing")
+
+    return content
 
 app = FastAPI(title="Excalidraw File API")
 
@@ -383,6 +515,133 @@ async def load_file(filepath: str):
         # print(f"[DEBUG] Decoded filepath: {decoded_filepath}")
         
         file_path = Path(decoded_filepath)
+
+        # Obsidian連携: パス判定と読み込み切り替え
+        if is_obsidian_path(str(file_path)):
+            # .excalidraw リクエストだが、.excalidraw.md が存在する場合はそちらを優先（移行済み対応）
+            if file_path.suffix == '.excalidraw':
+                md_path = file_path.with_suffix('.excalidraw.md')
+                if md_path.exists():
+                    file_path = md_path
+            
+            # Markdownファイルとして読み込む場合
+            if str(file_path).endswith('.excalidraw.md'):
+                if not file_path.exists():
+                     raise HTTPException(status_code=404, detail="Obsidian file not found")
+                
+                try:
+                    with open(file_path, "r", encoding="utf-8") as f:
+                        content = f.read()
+
+                    # Embedded Filesセクションから画像ファイル名を読み取る
+                    embedded_files_map = {}  # file_id -> filename
+                    embedded_match = re.search(r'## Embedded Files\n(.*?)\n(?=##|%%)', content, re.DOTALL)
+                    if embedded_match:
+                        embedded_section = embedded_match.group(1)
+                        # file_id: [[filename]] の形式を解析
+                        for line in embedded_section.split('\n'):
+                            if ':' in line and '[[' in line:
+                                file_id = line.split(':')[0].strip()
+                                filename_match = re.search(r'\[\[(.*?)\]\]', line)
+                                if filename_match:
+                                    filename = filename_match.group(1)
+                                    embedded_files_map[file_id] = filename
+
+                    json_str = extract_json_from_markdown(content)
+                    data = json.loads(json_str)
+
+                    # Embedded Filesセクションから画像を読み込んでfilesセクションに追加
+                    import base64
+                    files = data.get('files', {})
+                    if not files:
+                        files = {}
+                        data['files'] = files
+
+                    # Embedded Filesセクションの各画像を読み込む
+                    for file_id, image_filename in embedded_files_map.items():
+                        # 画像ファイルを探す（同じディレクトリまたは親ディレクトリ）
+                        image_path = file_path.parent / image_filename
+                        if not image_path.exists():
+                            # 親ディレクトリも探す
+                            image_path = file_path.parent.parent / image_filename
+
+                        if image_path.exists():
+                            try:
+                                # 拡張子からmimeTypeを推測
+                                ext = image_path.suffix.lower().lstrip('.')
+                                mime_type = f"image/{ext}" if ext in ['png', 'jpg', 'jpeg', 'gif', 'svg', 'webp'] else 'image/png'
+
+                                with open(image_path, 'rb') as img_file:
+                                    image_bytes = img_file.read()
+
+                                # base64エンコード
+                                base64_data = base64.b64encode(image_bytes).decode('utf-8')
+
+                                # dataURLを生成
+                                data_url = f"data:{mime_type};base64,{base64_data}"
+
+                                # filesセクションに追加
+                                files[file_id] = {
+                                    'mimeType': mime_type,
+                                    'id': file_id,
+                                    'dataURL': data_url,
+                                    'created': int(image_path.stat().st_mtime * 1000)
+                                }
+
+                                print(f"Loaded image: {image_path}")
+                            except Exception as e:
+                                print(f"Warning: Failed to load image {image_filename}: {e}")
+                        else:
+                            print(f"Warning: Image file not found: {image_filename}")
+
+                    # JSONに既にfilesがある場合、dataURLを補完
+                    for file_id, file_data in list(files.items()):
+                            # dataURLが存在しない場合、外部ファイルから読み込む
+                            if 'dataURL' not in file_data:
+                                mime_type = file_data.get('mimeType', 'image/png')
+                                ext = mime_type.split('/')[-1] if '/' in mime_type else 'png'
+
+                                # Embedded Filesセクションからファイル名を取得、なければfile_idから生成
+                                if file_id in embedded_files_map:
+                                    image_filename = embedded_files_map[file_id]
+                                else:
+                                    image_filename = f"{file_id[:8]}.{ext}"
+
+                                # 画像ファイルを探す（同じディレクトリまたは親ディレクトリ）
+                                image_path = file_path.parent / image_filename
+                                if not image_path.exists():
+                                    # 親ディレクトリも探す
+                                    image_path = file_path.parent.parent / image_filename
+
+                                # 画像ファイルが存在する場合、読み込む
+                                if image_path.exists():
+                                    try:
+                                        with open(image_path, 'rb') as img_file:
+                                            image_bytes = img_file.read()
+
+                                        # base64エンコード
+                                        base64_data = base64.b64encode(image_bytes).decode('utf-8')
+
+                                        # dataURLを生成
+                                        data_url = f"data:{mime_type};base64,{base64_data}"
+                                        file_data['dataURL'] = data_url
+
+                                        print(f"Loaded image: {image_path}")
+                                    except Exception as e:
+                                        print(f"Warning: Failed to load image {image_filename}: {e}")
+                                else:
+                                    print(f"Warning: Image file not found: {image_filename}")
+
+                    data_hash = compute_data_hash(data)
+
+                    return {
+                        "data": data,
+                        "modified": 0,
+                        "hash": data_hash,
+                    }
+                except Exception as e:
+                    print(f"Error loading Obsidian file: {e}")
+                    raise HTTPException(status_code=500, detail=f"Error parsing Obsidian file: {str(e)}")
         
         # ファイルが存在しない場合
         if not file_path.exists():
@@ -660,10 +919,70 @@ async def save_file(request: SaveFileRequest):
         # ディレクトリが存在しない場合は作成
         file_path.parent.mkdir(parents=True, exist_ok=True)
 
-        # バックアップを作成（強制バックアップオプションを使用）
-        backup_success = create_backup(request.filepath, force=request.force_backup)
-        if not backup_success:
-            print("Warning: Backup creation failed, but continuing with file save")
+        is_obsidian = False
+        original_md_content = None
+        image_files_map = {}  # file_id -> filename のマッピング
+
+        # Obsidian連携: パス判定と保存パス変更
+        if is_obsidian_path(str(file_path)):
+            is_obsidian = True
+             # .excalidraw リクエストだが、保存先を .excalidraw.md に変更（自動移行）
+            if file_path.suffix == '.excalidraw':
+                file_path = file_path.with_suffix('.excalidraw.md')
+
+            # 画像を外部ファイルとして保存
+            files = data_to_save.get('files', {})
+            if files:
+                # Excalidraw ファイルと同じディレクトリに画像を保存
+                import base64
+                for file_id, file_data in files.items():
+                    if 'dataURL' in file_data:
+                        # dataURL から画像データを抽出
+                        data_url = file_data['dataURL']
+                        # data:image/png;base64,... の形式
+                        if data_url.startswith('data:'):
+                            mime_type = file_data.get('mimeType', 'image/png')
+                            # 拡張子を取得
+                            ext = mime_type.split('/')[-1] if '/' in mime_type else 'png'
+
+                            # base64部分を抽出
+                            base64_data = data_url.split(',', 1)[1] if ',' in data_url else data_url
+
+                            # ファイル名を生成（file_idの最初の8文字を使用）
+                            image_filename = f"{file_id[:8]}.{ext}"
+                            image_path = file_path.parent / image_filename
+
+                            # 画像ファイルを保存
+                            try:
+                                image_bytes = base64.b64decode(base64_data)
+                                with open(image_path, 'wb') as img_file:
+                                    img_file.write(image_bytes)
+
+                                # ファイル名をマッピングに追加
+                                image_files_map[file_id] = image_filename
+
+                                # dataURLを削除してファイルサイズを削減
+                                # Obsidianプラグインは元のdataURLも保持するが、
+                                # ここでは削除してファイルサイズを削減
+                                del file_data['dataURL']
+
+                                print(f"Saved image: {image_path}")
+                            except Exception as e:
+                                print(f"Warning: Failed to save image {image_filename}: {e}")
+
+            # 既存コンテンツの読み込み（Frontmatter維持のため）
+            if file_path.exists():
+                try:
+                    with open(file_path, 'r', encoding='utf-8') as f:
+                        original_md_content = f.read()
+                except Exception as e:
+                    print(f"Warning: Failed to read existing obsidian file: {e}")
+
+        # バックアップを作成（Obsidianファイル以外）
+        if not is_obsidian:
+            backup_success = create_backup(request.filepath, force=request.force_backup)
+            if not backup_success:
+                print("Warning: Backup creation failed, but continuing with file save")
 
         # ファイルに保存 (リトライ処理付き)
         max_retries = 10
@@ -671,9 +990,19 @@ async def save_file(request: SaveFileRequest):
         for attempt in range(max_retries):
             try:
                 with open(file_path, 'w', encoding='utf-8') as f:
-                    json.dump(data_to_save, f, ensure_ascii=False, indent=2)
+                    if is_obsidian:
+                        # Obsidian形式 (Markdown + Compressed JSON) で保存
+                        json_str = json.dumps(data_to_save, ensure_ascii=False)
+                        new_content = embed_json_into_markdown(
+                            original_md_content,
+                            json_str,
+                            image_files_map if image_files_map else None
+                        )
+                        f.write(new_content)
+                    else:
+                        # 通常のJSON保存
+                        json.dump(data_to_save, f, ensure_ascii=False, indent=2)
                 # 成功したらループを抜ける
-                # print(f"File saved successfully on attempt {attempt + 1}")
                 break
             except PermissionError:
                 if attempt < max_retries - 1:
