@@ -4,19 +4,21 @@
     "type": "split",
     "children": [
       {
-        "id": "1b3988b8f7b2c15e",
+        "id": "36e134b4c957f1f7",
         "type": "tabs",
         "children": [
           {
-            "id": "5a3b4740754b41e5",
+            "id": "884c017e7e131211",
             "type": "leaf",
             "state": {
-              "type": "excalidraw",
+              "type": "markdown",
               "state": {
-                "file": "test.excalidraw.md"
+                "file": "無題のファイル.md",
+                "mode": "source",
+                "source": false
               },
-              "icon": "excalidraw-icon",
-              "title": "test.excalidraw"
+              "icon": "lucide-file",
+              "title": "無題のファイル"
             }
           }
         ]
@@ -182,17 +184,30 @@
       "obsidian-excalidraw-plugin:New drawing": false
     }
   },
-  "active": "5a3b4740754b41e5",
+  "active": "884c017e7e131211",
   "lastOpenFiles": [
+    "test_regenerated2.excalidraw.md",
+    "無題のファイル.md",
+    "test_data_web.excalidraw.md",
+    "test_data_web.excalidraw copy.md",
+    "test_output.md",
+    "test_regenerated.excalidraw.md",
+    "test_api_final.excalidraw.md",
+    "test_api.excalidraw.md",
+    "8108025f.png",
+    "48b39a12.png",
+    "Pasted Image 20251223075924_880.png",
+    "test_data_web.excalidraw",
+    "test_data.excalidraw",
+    "test_data.excalidraw.md",
     "test.excalidraw.md",
+    "test_data_new.excalidraw.md",
     "あらrh.excalidraw.md",
     "uncompressed_test.excalidraw.md",
     "save_test.excalidraw.md",
     "e4b789b5.png",
     "Excalidraw/test_save.excalidraw.md",
     "Excalidraw/9a37ea52.png",
-    "48b39a12.png",
-    "Pasted Image 20251223075924_880.png",
     "Excalidraw/Drawing 2025-12-23 07.13.45.excalidraw.md",
     "Excalidraw/Drawing 2025-12-23 07.59.12.excalidraw.md",
     "Excalidraw/Drawing 2025-12-23 07.11.28.excalidraw.md",
