@@ -917,6 +917,27 @@ export default function ExampleApp({
                 externalUpdateNotifiedHashRef.current = remoteHash;
               }
 
+              // Obsidianファイル（.excalidraw.md）の場合は、確認ダイアログを表示せず自動的に最新を読み込んで保存
+              if (currentFilePathValue.endsWith('.excalidraw.md')) {
+                const fileResult = await loadExcalidrawFile(currentFilePathValue);
+                if (fileResult) {
+                  applyLoadedFile(fileResult.data, fileResult.hash);
+                  const currentElements = excalidrawAPI.getSceneElements();
+                  const currentAppState = excalidrawAPI.getAppState();
+                  const currentFiles = excalidrawAPI.getFiles();
+                  const saved = await performSave(currentElements, currentAppState, currentFiles, true, true);
+                  if (saved) {
+                    showSaveNotification('最新の内容を読み込んで保存しました');
+                  } else {
+                    showSaveNotification('保存に失敗しました', true);
+                  }
+                } else {
+                  showSaveNotification('最新の内容の読み込みに失敗しました', true);
+                }
+                return false;
+              }
+
+              // それ以外のファイルは従来通り確認ダイアログを表示
               const reload = window.confirm(
                 'ファイルが他の人によって更新されています。\nOK: 最新の内容を読み込み\nキャンセル: サーバの内容をバックアップして現在の画面き保存',
               );
@@ -1026,26 +1047,46 @@ export default function ExampleApp({
           externalUpdateNotifiedHashRef.current = remoteHash;
         }
 
-        const shouldReload = window.confirm(
-          'ファイルが他の人によって更新されています。\nOK: 最新の内容を読み込み\nキャンセル: 現在の内容をバックアップして上書き保存',
-        );
-
-        if (shouldReload) {
+        // Obsidianファイル（.excalidraw.md）の場合は、確認ダイアログを表示せず自動的に最新を読み込んで保存
+        if (currentFilePath.endsWith('.excalidraw.md')) {
           const fileResult = await loadExcalidrawFile(currentFilePath);
           if (fileResult) {
-            applyLoadedFile(fileResult.data, fileResult.hash, '最新の内容を読み込みました');
+            applyLoadedFile(fileResult.data, fileResult.hash);
+            const currentElements = excalidrawAPI.getSceneElements();
+            const currentAppState = excalidrawAPI.getAppState();
+            const currentFiles = excalidrawAPI.getFiles();
+            const saved = await performSave(currentElements, currentAppState, currentFiles, true, true);
+            if (saved) {
+              showSaveNotification('最新の内容を読み込んで保存しました');
+            } else {
+              showSaveNotification('保存に失敗しました', true);
+            }
           } else {
             showSaveNotification('最新の内容の読み込みに失敗しました', true);
           }
         } else {
-          const currentElements = excalidrawAPI.getSceneElements();
-          const currentAppState = excalidrawAPI.getAppState();
-          const currentFiles = excalidrawAPI.getFiles();
-          const saved = await performSave(currentElements, currentAppState, currentFiles, true, true);
-          if (saved) {
-            showSaveNotification('最新の内容をバックアップして上書き保存しました');
+          // それ以外のファイルは従来通り確認ダイアログを表示
+          const shouldReload = window.confirm(
+            'ファイルが他の人によって更新されています。\nOK: 最新の内容を読み込み\nキャンセル: 現在の内容をバックアップして上書き保存',
+          );
+
+          if (shouldReload) {
+            const fileResult = await loadExcalidrawFile(currentFilePath);
+            if (fileResult) {
+              applyLoadedFile(fileResult.data, fileResult.hash, '最新の内容を読み込みました');
+            } else {
+              showSaveNotification('最新の内容の読み込みに失敗しました', true);
+            }
           } else {
-            showSaveNotification('上書き保存に失敗しました', true);
+            const currentElements = excalidrawAPI.getSceneElements();
+            const currentAppState = excalidrawAPI.getAppState();
+            const currentFiles = excalidrawAPI.getFiles();
+            const saved = await performSave(currentElements, currentAppState, currentFiles, true, true);
+            if (saved) {
+              showSaveNotification('最新の内容をバックアップして上書き保存しました');
+            } else {
+              showSaveNotification('上書き保存に失敗しました', true);
+            }
           }
         }
       }
