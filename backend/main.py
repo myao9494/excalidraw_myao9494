@@ -76,9 +76,33 @@ def embed_json_into_markdown(original_content: Optional[str], json_str: str, ima
     - original_contentがある場合は、既存のJSONブロックを置換する。
     - ない場合は新規テンプレートを作成する。
     - image_filesがある場合、## Embedded Filesセクションを追加
+    - JSONからテキスト要素を抽出して ## Text Elements セクションに記載
     """
     lz = LZString()
     compressed = lz.compressToBase64(json_str)
+    # Obsidianプラグインの動作に合わせて、256文字ごとに改行+空行を挿入
+    lines = [compressed[i:i+256] for i in range(0, len(compressed), 256)]
+    compressed = '\n\n'.join(lines)
+
+    # JSONデータからテキスト要素を抽出
+    text_elements_section = ""
+    try:
+        data = json.loads(json_str)
+        elements = data.get("elements", [])
+        text_elements = [el for el in elements if el.get("type") == "text" and not el.get("isDeleted", False)]
+
+        if text_elements:
+            for el in text_elements:
+                text_content = el.get("text", "")
+                element_id = el.get("id", "")
+                if text_content and element_id:
+                    # 改行文字を削除（Obsidianプラグインの動作に合わせる）
+                    text_content = text_content.replace("\n", "").replace("\r", "").strip()
+                    text_elements_section += f"{text_content} ^{element_id}\n\n"
+            # 最後の余分な改行を削除
+            text_elements_section = text_elements_section.rstrip('\n') + '\n'
+    except Exception as e:
+        print(f"Warning: Failed to extract text elements: {e}")
 
     # Embedded Filesセクションの生成
     embedded_files_section = ""
@@ -100,7 +124,7 @@ tags: [excalidraw]
 # Excalidraw Data
 
 ## Text Elements
-{EMBEDDED_FILES}%%
+{TEXT_ELEMENTS}{EMBEDDED_FILES}%%
 ## Drawing
 ```compressed-json
 {COMPRESSED_DATA}
@@ -109,10 +133,11 @@ tags: [excalidraw]
 
     if not original_content:
         content = template.replace("{COMPRESSED_DATA}", compressed)
+        content = content.replace("{TEXT_ELEMENTS}", text_elements_section)
         content = content.replace("{EMBEDDED_FILES}", embedded_files_section)
         return content
 
-    # 既存コンテンツがある場合、JSONブロックとEmbedded Filesセクションを更新
+    # 既存コンテンツがある場合、JSONブロック、Text Elements、Embedded Filesセクションを更新
 
     # 1. JSONブロックを置換（compressed-jsonとjsonの両方に対応）
     json_pattern = r'(```(?:compressed-json|json)\n)(.*?)(\n```)'
@@ -127,7 +152,23 @@ tags: [excalidraw]
             return f"{match.group(1)}{compressed}{match.group(3)}"
         content = re.sub(json_pattern, replace_json, original_content, flags=re.DOTALL)
 
-    # 2. Embedded Filesセクションを更新
+    # 2. Text Elementsセクションを更新
+    if text_elements_section:
+        # 既存のText Elementsセクション内容を置換（## Text Elements から次のセクションまたは%%まで）
+        text_pattern = r'(## Text Elements\n)(.*?)(\n(?=##|%%))'
+        if re.search(text_pattern, content, re.DOTALL):
+            def replace_text(match):
+                return f"{match.group(1)}{text_elements_section}{match.group(3)}"
+            content = re.sub(text_pattern, replace_text, content, flags=re.DOTALL)
+    else:
+        # テキスト要素がない場合は空にする（既存の内容を削除）
+        text_pattern = r'(## Text Elements\n)(.*?)(\n(?=##|%%))'
+        if re.search(text_pattern, content, re.DOTALL):
+            def replace_text(match):
+                return f"{match.group(1)}{match.group(3)}"
+            content = re.sub(text_pattern, replace_text, content, flags=re.DOTALL)
+
+    # 3. Embedded Filesセクションを更新
     if image_files:
         embedded_files_text = "## Embedded Files\n"
         for file_id, filename in image_files.items():
@@ -140,10 +181,13 @@ tags: [excalidraw]
             # 既存セクションを置換
             content = re.sub(embedded_pattern, embedded_files_text, content, flags=re.DOTALL)
         else:
-            # Text Elementsの後、%%の前に挿入
-            text_elements_pattern = r'(## Text Elements\n)'
-            if re.search(text_elements_pattern, content):
-                content = re.sub(text_elements_pattern, f"\\1{embedded_files_text}", content)
+            # Text Elementsの後、次のセクション（%%またはDrawing）の前に挿入
+            text_elements_pattern = r'(## Text Elements\n(?:.*?\n)?)'
+            if re.search(text_elements_pattern, content, re.DOTALL):
+                # Text Elementsの後に挿入
+                def insert_embedded(match):
+                    return f"{match.group(1)}{embedded_files_text}"
+                content = re.sub(text_elements_pattern, insert_embedded, content, count=1, flags=re.DOTALL)
             else:
                 # Text Elementsもない場合、%%の前に挿入
                 content = content.replace("%%\n## Drawing", f"{embedded_files_text}%%\n## Drawing")

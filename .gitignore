@@ -12,3 +12,5 @@ backend/__pycache__/
 test/
 upload_local/
 personal/backup/
+test_obsidian/
+tests/

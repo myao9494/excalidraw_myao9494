@@ -4,21 +4,19 @@
     "type": "split",
     "children": [
       {
-        "id": "36e134b4c957f1f7",
+        "id": "ad6fbaf45059777e",
         "type": "tabs",
         "children": [
           {
-            "id": "884c017e7e131211",
+            "id": "b526913e21343faf",
             "type": "leaf",
             "state": {
-              "type": "markdown",
+              "type": "excalidraw",
               "state": {
-                "file": "無題のファイル.md",
-                "mode": "source",
-                "source": false
+                "file": "test_data_web.excalidraw.md"
               },
-              "icon": "lucide-file",
-              "title": "無題のファイル"
+              "icon": "excalidraw-icon",
+              "title": "test_data_web.excalidraw"
             }
           }
         ]
@@ -184,11 +182,11 @@
       "obsidian-excalidraw-plugin:New drawing": false
     }
   },
-  "active": "884c017e7e131211",
+  "active": "b526913e21343faf",
   "lastOpenFiles": [
-    "test_regenerated2.excalidraw.md",
     "無題のファイル.md",
     "test_data_web.excalidraw.md",
+    "test_regenerated2.excalidraw.md",
     "test_data_web.excalidraw copy.md",
     "test_output.md",
     "test_regenerated.excalidraw.md",
