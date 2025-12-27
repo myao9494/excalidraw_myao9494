@@ -34,11 +34,11 @@ export interface SaveFileResponse {
 export const getFilePathFromUrl = (): string | null => {
   const urlParams = new URLSearchParams(window.location.search);
   const rawFilepath = urlParams.get('filepath');
-  
+
   if (!rawFilepath) {
     return null;
   }
-  
+
   try {
     // 明示的にデコードを行う（ダブルクォートなどの特殊文字に対応）
     const decodedFilepath = decodeURIComponent(rawFilepath);
@@ -334,16 +334,16 @@ const enhanceSvgLinks = (svg: SVGSVGElement | null): void => {
 export const loadExcalidrawFile = async (filePath: string): Promise<LoadFileResponse | null> => {
   try {
     const response = await fetch(`${API_BASE_URL}/api/load-file?filepath=${encodeURIComponent(filePath)}`);
-    
+
     if (response.status === 404) {
       // ファイルが存在しない場合はnullを返す
       return null;
     }
-    
+
     if (!response.ok) {
       throw new Error(`HTTP error! status: ${response.status}`);
     }
-    
+
     const result = await response.json();
     return result;
   } catch (error) {
@@ -362,15 +362,15 @@ export const getFileInfo = async (
 ): Promise<FileInfoResponse | null> => {
   try {
     const response = await fetch(`${API_BASE_URL}/api/file-info?filepath=${encodeURIComponent(filePath)}`);
-    
+
     if (response.status === 404) {
       return { modified: 0, exists: false };
     }
-    
+
     if (!response.ok) {
       throw new Error(`HTTP error! status: ${response.status}`);
     }
-    
+
     const result = await response.json();
     return result;
   } catch (error) {
@@ -388,10 +388,10 @@ export const saveExcalidrawFile = async (
 ): Promise<SaveFileResponse | null> => {
   try {
     const saveUrl = `${API_BASE_URL}/api/save-file`;
-  // console.log(`[DEBUG] Saving file to: ${saveUrl}`);
-  // console.log(`[DEBUG] File path: ${filepath}`);
-  // console.log(`[DEBUG] Force backup: ${forceBackup}`);
-    
+    // console.log(`[DEBUG] Saving file to: ${saveUrl}`);
+    // console.log(`[DEBUG] File path: ${filepath}`);
+    // console.log(`[DEBUG] Force backup: ${forceBackup}`);
+
     const response = await fetch(saveUrl, {
       method: 'POST',
       headers: {
@@ -403,11 +403,11 @@ export const saveExcalidrawFile = async (
         force_backup: forceBackup
       })
     });
-    
+
     if (!response.ok) {
       throw new Error(`HTTP error! status: ${response.status}`);
     }
-    
+
     const result = await response.json();
     if (!result?.success) {
       const message = result?.message || 'File save skipped by server.';
@@ -428,10 +428,10 @@ export const saveExcalidrawFile = async (
 };
 
 export const uploadFiles = async (
-  files: File[], 
-  currentPath: string, 
+  files: File[],
+  currentPath: string,
   fileType: string = 'general'
-): Promise<{ success: boolean; files?: Array<{name: string; path: string; size: number}>; error?: string }> => {
+): Promise<{ success: boolean; files?: Array<{ name: string; path: string; size: number }>; error?: string }> => {
   try {
     const formData = new FormData();
     files.forEach(file => formData.append('files', file));
@@ -530,13 +530,55 @@ export const isExcalidrawFile = (filePath: string): boolean => {
 };
 
 /**
+ * 相対パスかどうかを判定
+ */
+const isRelativePath = (path: string): boolean => {
+  // 絶対パスの判定（Unix: /で始まる, Windows: C:\など）
+  if (path.startsWith('/')) return false;
+  if (/^[a-zA-Z]:[\\/]/.test(path)) return false;
+  // URL形式は除外
+  if (path.startsWith('http://') || path.startsWith('https://')) return false;
+  if (path.startsWith('obsidian://')) return false;
+  // その他は相対パスとみなす
+  return true;
+};
+
+/**
+ * 相対パスを絶対パスに変換
+ */
+const resolveRelativePath = (relativePath: string, currentFolder: string): string => {
+  // currentFolderをスラッシュで正規化
+  const normalizedFolder = currentFolder.replace(/\\/g, '/');
+  const normalizedRelative = relativePath.replace(/\\/g, '/');
+
+  // 相対パスの各セグメントを処理
+  const folderParts = normalizedFolder.split('/').filter(p => p !== '');
+  const relativeParts = normalizedRelative.split('/');
+
+  for (const part of relativeParts) {
+    if (part === '..') {
+      // 親ディレクトリへ移動
+      folderParts.pop();
+    } else if (part !== '.' && part !== '') {
+      // 通常のディレクトリ/ファイル名を追加
+      folderParts.push(part);
+    }
+  }
+
+  // Unix形式の絶対パスを構築
+  // 元のフォルダがスラッシュで始まっていた場合は先頭にスラッシュを追加
+  const prefix = normalizedFolder.startsWith('/') ? '/' : '';
+  return prefix + folderParts.join('/');
+};
+
+/**
  * 付箋のリンククリック処理
  * Excalidrawファイル以外は外部ファイルビューアーにリダイレクト
  */
 export const handleStickyNoteLink = async (linkUrl: string, currentFolder?: string): Promise<void> => {
   try {
     // HTMLエンティティをデコード（&quot; → "）
-    const trimmedLink = linkUrl.trim().replace(/&quot;/g, '"');
+    let trimmedLink = linkUrl.trim().replace(/&quot;/g, '"');
 
     if (CMD_LINK_PATTERN.test(trimmedLink)) {
       await runCommandViaBackend(trimmedLink, currentFolder); // ← フォルダを渡す
@@ -571,6 +613,13 @@ export const handleStickyNoteLink = async (linkUrl: string, currentFolder?: stri
     if (trimmedLink.startsWith('http://') || trimmedLink.startsWith('https://')) {
       window.open(trimmedLink, '_blank');
       return;
+    }
+
+    // 相対パスの場合は絶対パスに変換
+    if (isRelativePath(trimmedLink) && currentFolder) {
+      const absolutePath = resolveRelativePath(trimmedLink, currentFolder);
+      console.log(`[Link] Resolved relative path: ${trimmedLink} -> ${absolutePath}`);
+      trimmedLink = absolutePath;
     }
 
     // ファイルパスの場合
@@ -685,7 +734,7 @@ export const exportToSvgFile = async (
     // SVGをテキストとして取得
     enhanceSvgLinks(svg);
     const svgString = new XMLSerializer().serializeToString(svg);
-    
+
     // デバッグ用：SVG内容を確認
     console.log('Generated SVG contains font data:', svgString.includes('@font-face'));
     console.log('Text elements count:', elementsForSvg.filter(e => e.type === 'text').length);

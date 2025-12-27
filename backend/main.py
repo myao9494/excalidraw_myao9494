@@ -550,6 +550,31 @@ def get_upload_directory(file_path: str, file_type: str = "general") -> Path:
     upload_dir.mkdir(parents=True, exist_ok=True)
     return upload_dir
 
+def compute_relative_path(current_path: str, target_path: str) -> str:
+    """
+    現在のExcalidrawファイルの位置を基準とした相対パスを計算する。
+    localStorageの場合は絶対パスをそのまま返す。
+    """
+    # localStorageの場合は相対パスを計算できないため、絶対パスを返す
+    if not current_path or current_path.startswith('localStorage'):
+        return target_path
+    
+    try:
+        # 現在のファイルの親ディレクトリを基準とする
+        base_dir = Path(current_path).parent
+        target = Path(target_path)
+        
+        # 相対パスを計算
+        relative = os.path.relpath(target, base_dir)
+        
+        # Windowsのバックスラッシュをスラッシュに統一
+        relative = relative.replace('\\', '/')
+        
+        return relative
+    except ValueError:
+        # 異なるドライブ間など、相対パスを計算できない場合は絶対パスを返す
+        return target_path
+
 def sanitize_filename(filename: str) -> str:
     """ファイル名をサニタイズ"""
     # 危険な文字を除去
@@ -1161,7 +1186,7 @@ async def upload_files(
             
             uploaded_files.append({
                 "name": file.filename,
-                "path": str(file_path),
+                "path": compute_relative_path(current_path, str(file_path)),
                 "size": len(content)
             })
         
@@ -1203,7 +1228,7 @@ async def create_folder_shortcut(
         
         return FolderShortcutResponse(
             success=True,
-            folderPath=str(shortcut_path)
+            folderPath=compute_relative_path(current_path, str(shortcut_path))
         )
         
     except Exception as e:
@@ -1234,7 +1259,7 @@ async def save_email(request: SaveEmailRequest):
         
         return EmailSaveResponse(
             success=True,
-            savedPath=str(email_path)
+            savedPath=compute_relative_path(request.currentPath, str(email_path))
         )
         
     except Exception as e:
