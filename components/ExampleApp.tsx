@@ -39,7 +39,9 @@ import {
   openFileViaBackend,
   exportToSvgFile,
   isExcalidrawFile,
-  type ExcalidrawFileData
+  formatLoadFileError,
+  type ExcalidrawFileData,
+  type LoadFileError
 } from "../utils/fileUtils";
 import { generateTabTitle } from "../utils/titleUtils";
 
@@ -320,9 +322,13 @@ export default function ExampleApp({
   // 保存通知を表示する関数
   const showSaveNotification = useCallback((message: string, isError: boolean = false) => {
     setSaveNotification({ message, isError });
+
+    // エラーの場合は10秒、通常は2秒
+    const displayDuration = isError ? 10000 : 2000;
+
     setTimeout(() => {
       setSaveNotification(null);
-    }, 2000);
+    }, displayDuration);
   }, []);
 
   // 現在のフォルダパスを取得する関数（Windows/Unix両対応）
@@ -919,20 +925,30 @@ export default function ExampleApp({
 
               // Obsidianファイル（.excalidraw.md）の場合は、確認ダイアログを表示せず自動的に最新を読み込んで保存
               if (currentFilePathValue.endsWith('.excalidraw.md')) {
-                const fileResult = await loadExcalidrawFile(currentFilePathValue);
-                if (fileResult) {
-                  applyLoadedFile(fileResult.data, fileResult.hash);
-                  const currentElements = excalidrawAPI.getSceneElements();
-                  const currentAppState = excalidrawAPI.getAppState();
-                  const currentFiles = excalidrawAPI.getFiles();
-                  const saved = await performSave(currentElements, currentAppState, currentFiles, true, true);
-                  if (saved) {
-                    showSaveNotification('最新の内容を読み込んで保存しました');
+                try {
+                  const fileResult = await loadExcalidrawFile(currentFilePathValue);
+                  if (fileResult) {
+                    applyLoadedFile(fileResult.data, fileResult.hash);
+                    const currentElements = excalidrawAPI.getSceneElements();
+                    const currentAppState = excalidrawAPI.getAppState();
+                    const currentFiles = excalidrawAPI.getFiles();
+                    const saved = await performSave(currentElements, currentAppState, currentFiles, true, true);
+                    if (saved) {
+                      showSaveNotification('最新の内容を読み込んで保存しました');
+                    } else {
+                      showSaveNotification('保存に失敗しました', true);
+                    }
                   } else {
-                    showSaveNotification('保存に失敗しました', true);
+                    showSaveNotification('最新の内容の読み込みに失敗しました', true);
                   }
-                } else {
-                  showSaveNotification('最新の内容の読み込みに失敗しました', true);
+                } catch (error) {
+                  if (error && typeof error === 'object' && 'status' in error && 'error' in error) {
+                    const loadError = error as LoadFileError;
+                    const detailedMessage = formatLoadFileError(loadError);
+                    showSaveNotification(detailedMessage, true);
+                  } else {
+                    showSaveNotification('最新の内容の読み込みに失敗しました', true);
+                  }
                 }
                 return false;
               }
@@ -943,15 +959,25 @@ export default function ExampleApp({
               );
 
               if (reload) {
-                const fileResult = await loadExcalidrawFile(currentFilePathValue);
-                if (fileResult) {
-                  applyLoadedFile(
-                    fileResult.data,
-                    fileResult.hash,
-                    '最新の内容を読み込みました',
-                  );
-                } else {
-                  showSaveNotification('最新の内容の読み込みに失敗しました', true);
+                try {
+                  const fileResult = await loadExcalidrawFile(currentFilePathValue);
+                  if (fileResult) {
+                    applyLoadedFile(
+                      fileResult.data,
+                      fileResult.hash,
+                      '最新の内容を読み込みました',
+                    );
+                  } else {
+                    showSaveNotification('最新の内容の読み込みに失敗しました', true);
+                  }
+                } catch (error) {
+                  if (error && typeof error === 'object' && 'status' in error && 'error' in error) {
+                    const loadError = error as LoadFileError;
+                    const detailedMessage = formatLoadFileError(loadError);
+                    showSaveNotification(detailedMessage, true);
+                  } else {
+                    showSaveNotification('最新の内容の読み込みに失敗しました', true);
+                  }
                 }
                 return false;
               }
@@ -1049,20 +1075,30 @@ export default function ExampleApp({
 
         // Obsidianファイル（.excalidraw.md）の場合は、確認ダイアログを表示せず自動的に最新を読み込んで保存
         if (currentFilePath.endsWith('.excalidraw.md')) {
-          const fileResult = await loadExcalidrawFile(currentFilePath);
-          if (fileResult) {
-            applyLoadedFile(fileResult.data, fileResult.hash);
-            const currentElements = excalidrawAPI.getSceneElements();
-            const currentAppState = excalidrawAPI.getAppState();
-            const currentFiles = excalidrawAPI.getFiles();
-            const saved = await performSave(currentElements, currentAppState, currentFiles, true, true);
-            if (saved) {
-              showSaveNotification('最新の内容を読み込んで保存しました');
+          try {
+            const fileResult = await loadExcalidrawFile(currentFilePath);
+            if (fileResult) {
+              applyLoadedFile(fileResult.data, fileResult.hash);
+              const currentElements = excalidrawAPI.getSceneElements();
+              const currentAppState = excalidrawAPI.getAppState();
+              const currentFiles = excalidrawAPI.getFiles();
+              const saved = await performSave(currentElements, currentAppState, currentFiles, true, true);
+              if (saved) {
+                showSaveNotification('最新の内容を読み込んで保存しました');
+              } else {
+                showSaveNotification('保存に失敗しました', true);
+              }
             } else {
-              showSaveNotification('保存に失敗しました', true);
+              showSaveNotification('最新の内容の読み込みに失敗しました', true);
             }
-          } else {
-            showSaveNotification('最新の内容の読み込みに失敗しました', true);
+          } catch (error) {
+            if (error && typeof error === 'object' && 'status' in error && 'error' in error) {
+              const loadError = error as LoadFileError;
+              const detailedMessage = formatLoadFileError(loadError);
+              showSaveNotification(detailedMessage, true);
+            } else {
+              showSaveNotification('最新の内容の読み込みに失敗しました', true);
+            }
           }
         } else {
           // それ以外のファイルは従来通り確認ダイアログを表示
@@ -1071,11 +1107,21 @@ export default function ExampleApp({
           );
 
           if (shouldReload) {
-            const fileResult = await loadExcalidrawFile(currentFilePath);
-            if (fileResult) {
-              applyLoadedFile(fileResult.data, fileResult.hash, '最新の内容を読み込みました');
-            } else {
-              showSaveNotification('最新の内容の読み込みに失敗しました', true);
+            try {
+              const fileResult = await loadExcalidrawFile(currentFilePath);
+              if (fileResult) {
+                applyLoadedFile(fileResult.data, fileResult.hash, '最新の内容を読み込みました');
+              } else {
+                showSaveNotification('最新の内容の読み込みに失敗しました', true);
+              }
+            } catch (error) {
+              if (error && typeof error === 'object' && 'status' in error && 'error' in error) {
+                const loadError = error as LoadFileError;
+                const detailedMessage = formatLoadFileError(loadError);
+                showSaveNotification(detailedMessage, true);
+              } else {
+                showSaveNotification('最新の内容の読み込みに失敗しました', true);
+              }
             }
           } else {
             const currentElements = excalidrawAPI.getSceneElements();

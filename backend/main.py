@@ -228,6 +228,21 @@ async def configure_logging() -> None:
             handler.setFormatter(formatter)
 
 # データモデル
+class ValidationErrorDetail(BaseModel):
+    """バリデーションエラーの詳細情報"""
+    field: str          # エラーフィールドパス (例: "elements[0].points")
+    message: str        # エラーメッセージ
+    value: Optional[str] = None  # 問題のある値（文字列化）
+
+class JsonErrorResponse(BaseModel):
+    """JSON読み込みエラーのレスポンス"""
+    error_type: str     # "json_syntax" | "validation" | "schema"
+    message: str        # ユーザー向けメッセージ
+    line: Optional[int] = None      # エラー行数
+    column: Optional[int] = None    # エラーカラム位置
+    context: Optional[str] = None   # エラー周辺のテキスト
+    details: Optional[List[ValidationErrorDetail]] = None
+
 class ExcalidrawElement(BaseModel):
     type: str
     x: float
@@ -393,9 +408,126 @@ def compute_data_hash(data: Any) -> str:
     return hashlib.sha256(canonical.encode("utf-8", errors="surrogatepass")).hexdigest()
 
 
+def validate_json_with_details(json_str: str) -> tuple[Any, Optional[JsonErrorResponse]]:
+    """
+    JSON文字列を検証し、詳細なエラー情報を返す
+
+    Returns:
+        (data, error): 成功時は(data, None)、失敗時は(None, error_response)
+    """
+    # ステップ1: JSON構文チェック
+    try:
+        data = json.loads(json_str)
+    except json.JSONDecodeError as e:
+        # エラー周辺のコンテキストを抽出（前後3行）
+        lines = json_str.split('\n')
+        start = max(0, e.lineno - 3)
+        end = min(len(lines), e.lineno + 2)
+        context_lines = lines[start:end]
+
+        # エラー行にマーカーを追加
+        error_idx = e.lineno - 1 - start
+        if 0 <= error_idx < len(context_lines):
+            context_lines[error_idx] += f"  <-- カラム {e.colno}"
+
+        context = '\n'.join([f"{start+i+1}: {line}" for i, line in enumerate(context_lines)])
+
+        return None, JsonErrorResponse(
+            error_type="json_syntax",
+            message=f"JSON構文エラー: {e.msg}",
+            line=e.lineno,
+            column=e.colno,
+            context=context
+        )
+
+    # ステップ2: 基本構造チェック
+    if not isinstance(data, dict):
+        return None, JsonErrorResponse(
+            error_type="schema",
+            message="ExcalidrawファイルはJSONオブジェクトである必要があります"
+        )
+
+    if 'elements' not in data:
+        return None, JsonErrorResponse(
+            error_type="schema",
+            message="'elements'フィールドが見つかりません"
+        )
+
+    # ステップ3: points フィールドの検証
+    validation_errors = []
+
+    for idx, element in enumerate(data.get('elements', [])):
+        if not isinstance(element, dict):
+            continue
+
+        element_type = element.get('type', 'unknown')
+        element_id = element.get('id', f'index-{idx}')
+
+        # line, draw, freedraw タイプは points が必須
+        if element_type in ['line', 'draw', 'freedraw']:
+            if 'points' not in element:
+                validation_errors.append(ValidationErrorDetail(
+                    field=f"elements[{idx}] (type={element_type}, id={element_id})",
+                    message=f"'{element_type}'タイプの要素には'points'フィールドが必要です"
+                ))
+                continue
+
+            points = element['points']
+
+            # pointsは配列である必要がある
+            if not isinstance(points, list):
+                validation_errors.append(ValidationErrorDetail(
+                    field=f"elements[{idx}].points",
+                    message=f"pointsは配列である必要があります（現在の型: {type(points).__name__}）",
+                    value=str(points)[:50]
+                ))
+                continue
+
+            # 各ポイントの形式チェック
+            for pidx, point in enumerate(points):
+                if not isinstance(point, list) or len(point) != 2:
+                    validation_errors.append(ValidationErrorDetail(
+                        field=f"elements[{idx}].points[{pidx}]",
+                        message="各ポイントは[x, y]形式の配列である必要があります",
+                        value=str(point)[:50]
+                    ))
+                elif not all(isinstance(c, (int, float)) for c in point):
+                    validation_errors.append(ValidationErrorDetail(
+                        field=f"elements[{idx}].points[{pidx}]",
+                        message="座標は数値である必要があります",
+                        value=str(point)[:50]
+                    ))
+
+    if validation_errors:
+        # 最初の5個のエラーのみ返す
+        return None, JsonErrorResponse(
+            error_type="validation",
+            message=f"{len(validation_errors)}個のバリデーションエラーが見つかりました" +
+                   (f"（最初の5個を表示）" if len(validation_errors) > 5 else ""),
+            details=validation_errors[:5]
+        )
+
+    return data, None
+
+
 def load_json_file(file_path: Path) -> Any:
+    """
+    JSONファイルを読み込み、詳細なバリデーションを実行
+
+    Raises:
+        HTTPException: バリデーションエラー時
+    """
     with open(file_path, "r", encoding="utf-8") as file:
-        return json.load(file)
+        json_str = file.read()
+
+    data, validation_error = validate_json_with_details(json_str)
+    if validation_error:
+        raise HTTPException(
+            status_code=400,
+            detail=validation_error.model_dump()
+        )
+
+    return data
 
 
 def create_backup(filepath: str, force: bool = False) -> bool:
@@ -634,7 +766,14 @@ async def load_file(filepath: str):
                                     embedded_files_map[file_id] = filename
 
                     json_str = extract_json_from_markdown(content)
-                    data = json.loads(json_str)
+
+                    # 詳細検証を実行
+                    data, validation_error = validate_json_with_details(json_str)
+                    if validation_error:
+                        raise HTTPException(
+                            status_code=400,
+                            detail=validation_error.model_dump()
+                        )
 
                     # Embedded Filesセクションから画像を読み込んでfilesセクションに追加
                     import base64

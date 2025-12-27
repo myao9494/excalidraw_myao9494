@@ -12,6 +12,29 @@ export interface ExcalidrawFileData {
   files?: any;
 }
 
+/**
+ * JSON読み込みエラーの詳細情報
+ */
+export interface ValidationErrorDetail {
+  field: string;
+  message: string;
+  value?: string;
+}
+
+export interface JsonErrorResponse {
+  error_type: 'json_syntax' | 'validation' | 'schema';
+  message: string;
+  line?: number;
+  column?: number;
+  context?: string;
+  details?: ValidationErrorDetail[];
+}
+
+export interface LoadFileError {
+  status: number;
+  error: JsonErrorResponse;
+}
+
 export interface LoadFileResponse {
   data: ExcalidrawFileData;
   hash: string;
@@ -341,14 +364,46 @@ export const loadExcalidrawFile = async (filePath: string): Promise<LoadFileResp
     }
 
     if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
+      // エラーレスポンスの詳細を取得
+      let errorDetail: JsonErrorResponse;
+      try {
+        const errorData = await response.json();
+        // detailフィールドにJsonErrorResponseが含まれている
+        errorDetail = typeof errorData.detail === 'string'
+          ? { error_type: 'schema', message: errorData.detail }
+          : errorData.detail;
+      } catch {
+        errorDetail = {
+          error_type: 'schema',
+          message: `HTTP error! status: ${response.status}`
+        };
+      }
+
+      // エラーをスローして上位で処理
+      throw {
+        status: response.status,
+        error: errorDetail
+      } as LoadFileError;
     }
 
     const result = await response.json();
     return result;
   } catch (error) {
+    // LoadFileErrorの場合は再スロー
+    if (error && typeof error === 'object' && 'status' in error && 'error' in error) {
+      throw error;
+    }
+
     console.error('Error loading file:', error);
-    return null;
+
+    // ネットワークエラーなど予期しないエラー
+    throw {
+      status: 500,
+      error: {
+        error_type: 'schema',
+        message: error instanceof Error ? error.message : 'ファイルの読み込みに失敗しました'
+      }
+    } as LoadFileError;
   }
 };
 
@@ -768,3 +823,41 @@ export const exportToSvgFile = async (
     return false;
   }
 };
+
+/**
+ * JsonErrorResponseをユーザー向けメッセージに整形
+ */
+export function formatJsonError(error: JsonErrorResponse): string {
+  let message = error.message;
+
+  // JSON構文エラーの場合
+  if (error.error_type === 'json_syntax') {
+    if (error.line && error.column) {
+      message += `\n\n行 ${error.line}, カラム ${error.column}`;
+    }
+    if (error.context) {
+      message += `\n\nエラー箇所:\n${error.context}`;
+    }
+  }
+
+  // バリデーションエラーの場合
+  if (error.error_type === 'validation' && error.details && error.details.length > 0) {
+    message += '\n\n詳細:';
+    error.details.forEach((detail, idx) => {
+      message += `\n${idx + 1}. ${detail.field}`;
+      message += `\n   ${detail.message}`;
+      if (detail.value) {
+        message += `\n   値: ${detail.value}`;
+      }
+    });
+  }
+
+  return message;
+}
+
+/**
+ * LoadFileErrorをユーザー向けメッセージに整形
+ */
+export function formatLoadFileError(loadError: LoadFileError): string {
+  return formatJsonError(loadError.error);
+}

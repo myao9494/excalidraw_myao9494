@@ -422,15 +422,20 @@
   z-index: 10000;
   background: #4caf50;
   color: white;
-  padding: 12px 24px;
-  border-radius: 6px;
+  padding: 16px 20px;
+  border-radius: 8px;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
   font-weight: 500;
   font-size: 14px;
   animation: slideInRight 0.3s ease-out;
-  
+  max-width: 600px;
+  white-space: pre-wrap;
+  word-break: break-word;
+
   &.error {
     background: #f44336;
+    max-height: 400px;
+    overflow-y: auto;
   }
 }
 
