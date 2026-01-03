@@ -563,6 +563,20 @@ def load_json_file(file_path: Path) -> Any:
     with open(file_path, "r", encoding="utf-8") as file:
         json_str = file.read()
 
+    # Empty file handling: return default empty scene
+    if not json_str.strip():
+        return {
+            "type": "excalidraw",
+            "version": 2,
+            "source": "https://excalidraw.com",
+            "elements": [],
+            "appState": {
+                "viewBackgroundColor": "#ffffff",
+                "gridSize": None
+            },
+            "files": {}
+        }
+
     data, validation_error = validate_json_with_details(json_str)
     if validation_error:
         raise HTTPException(
@@ -962,6 +976,8 @@ async def load_file(filepath: str):
         raise HTTPException(status_code=404, detail="File not found")
     except json.JSONDecodeError:
         raise HTTPException(status_code=400, detail="Invalid JSON format")
+    except HTTPException:
+        raise
     except Exception as e:
         print(f"An unexpected error occurred in load_file: {e}")
         traceback.print_exc()
