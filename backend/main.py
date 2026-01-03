@@ -63,11 +63,33 @@ def extract_json_from_markdown(content: str) -> str:
         if not decompressed:
              # 解凍結果が空、または失敗した場合
             raise ValueError("Failed to decompress JSON content")
+        
+        # サロゲートペアを結合して正しいUnicode文字にする
+        # LZString（JS実装）はUTF-16コードユニットを文字として返すため、Pythonではサロゲートペアが分割された状態になることがある
+        try:
+            decompressed = decompressed.encode('utf-16', 'surrogatepass').decode('utf-16')
+        except Exception:
+            # 変換に失敗した場合はそのまま進む（あるいはログ出力）
+            pass
+
         # 解凍結果が正当なJSONかチェック
         json.loads(decompressed)
         return decompressed
     except Exception as e:
         raise ValueError(f"Failed to extract/decompress JSON: {e}")
+
+def convert_to_utf16_surrogates(text: str) -> str:
+    """
+    Python文字列をJSのようなUTF-16サロゲートペアを含む文字列に変換する
+    LZStringが32bit文字（絵文字など）を正しく圧縮できない問題を回避するため
+    """
+    utf16_bytes = text.encode('utf-16le')
+    # 2バイトごとに読み込んで文字にする
+    chars = []
+    for i in range(0, len(utf16_bytes), 2):
+        code_unit = int.from_bytes(utf16_bytes[i:i+2], byteorder='little')
+        chars.append(chr(code_unit))
+    return "".join(chars)
 
 def embed_json_into_markdown(original_content: Optional[str], json_str: str, image_files: Optional[dict] = None) -> str:
     """
@@ -79,7 +101,9 @@ def embed_json_into_markdown(original_content: Optional[str], json_str: str, ima
     - JSONからテキスト要素を抽出して ## Text Elements セクションに記載
     """
     lz = LZString()
-    compressed = lz.compressToBase64(json_str)
+    # 32bit文字（絵文字）対応: サロゲートペアに分解してから圧縮
+    safe_json_str = convert_to_utf16_surrogates(json_str)
+    compressed = lz.compressToBase64(safe_json_str)
     # Obsidianプラグインの動作に合わせて、256文字ごとに改行+空行を挿入
     lines = [compressed[i:i+256] for i in range(0, len(compressed), 256)]
     compressed = '\n\n'.join(lines)
@@ -96,8 +120,9 @@ def embed_json_into_markdown(original_content: Optional[str], json_str: str, ima
                 text_content = el.get("text", "")
                 element_id = el.get("id", "")
                 if text_content and element_id:
-                    # 改行文字を削除（Obsidianプラグインの動作に合わせる）
-                    text_content = text_content.replace("\n", "").replace("\r", "").strip()
+                    # Obsidianプラグインに合わせて、改行を維持し、IDを末尾に付与する
+                    # 末尾の空白を除去
+                    text_content = text_content.rstrip()
                     text_elements_section += f"{text_content} ^{element_id}\n\n"
             # 最後の余分な改行を削除
             text_elements_section = text_elements_section.rstrip('\n') + '\n'
