@@ -20,6 +20,24 @@ from typing import Dict, List, Any, Optional
 import re
 from lzstring import LZString
 
+def find_vault_root(start_path: Path) -> Optional[Path]:
+    """
+    指定されたパスから上向きに探索して、Obsidian Vaultのルート（.obsidianフォルダがある場所）を見つける
+    """
+    try:
+        current = start_path
+        if current.is_file():
+            current = current.parent
+        
+        while current != current.parent:
+            if (current / ".obsidian").is_dir():
+                return current
+            current = current.parent
+            
+        return None
+    except Exception:
+        return None
+
 def is_obsidian_path(filepath: str) -> bool:
     """
     パスがObsidian管理下にあるか判定する。
@@ -809,11 +827,25 @@ async def load_file(filepath: str):
 
                     # Embedded Filesセクションの各画像を読み込む
                     for file_id, image_filename in embedded_files_map.items():
-                        # 画像ファイルを探す（同じディレクトリまたは親ディレクトリ）
+                        # 画像ファイルを探す
+                        # 1. 同じディレクトリ
                         image_path = file_path.parent / image_filename
                         if not image_path.exists():
-                            # 親ディレクトリも探す
-                            image_path = file_path.parent.parent / image_filename
+                            # 2. Vaultルートからの相対パスとして試行
+                            vault_root = find_vault_root(file_path)
+                            if vault_root:
+                                candidate = vault_root / image_filename
+                                if candidate.exists():
+                                    image_path = candidate
+                                else:
+                                    # 3. Attachmentsフォルダなどのパターンも考慮（必要に応じて）
+                                    # ここでは単純に親フォルダを遡って探す（簡易的なフォールバック）
+                                    try_parent = file_path.parent.parent / image_filename
+                                    if try_parent.exists():
+                                        image_path = try_parent
+                            else:
+                                # Vaultが見つからない場合は親ディレクトリも試す
+                                image_path = file_path.parent.parent / image_filename
 
                         if image_path.exists():
                             try:
@@ -857,11 +889,24 @@ async def load_file(filepath: str):
                                 else:
                                     image_filename = f"{file_id[:8]}.{ext}"
 
-                                # 画像ファイルを探す（同じディレクトリまたは親ディレクトリ）
+                                if file_id in embedded_files_map:
+                                    image_filename = embedded_files_map[file_id]
+                                else:
+                                    image_filename = f"{file_id[:8]}.{ext}"
+
+                                # 画像ファイルを探す
                                 image_path = file_path.parent / image_filename
                                 if not image_path.exists():
-                                    # 親ディレクトリも探す
-                                    image_path = file_path.parent.parent / image_filename
+                                    # Vaultルートからの相対パスとして試行
+                                    vault_root = find_vault_root(file_path)
+                                    if vault_root:
+                                        candidate = vault_root / image_filename
+                                        if candidate.exists():
+                                            image_path = candidate
+                                    
+                                    if not image_path.exists():
+                                         # 親ディレクトリも探す
+                                        image_path = file_path.parent.parent / image_filename
 
                                 # 画像ファイルが存在する場合、読み込む
                                 if image_path.exists():
@@ -1245,43 +1290,95 @@ async def save_file(request: SaveFileRequest):
                         # dataURL から画像データを抽出
                         data_url = file_data['dataURL']
                         # data:image/png;base64,... の形式
-                        if data_url.startswith('data:'):
-                            mime_type = file_data.get('mimeType', 'image/png')
-                            # 拡張子を取得
-                            ext = mime_type.split('/')[-1] if '/' in mime_type else 'png'
+            # 既存コンテンツの読み込み（Frontmatter維持のため、および既存の画像リンク解析のため）
+            original_md_content = None
+            existing_embedded_files = {} # file_id -> filename/link
 
-                            # base64部分を抽出
-                            base64_data = data_url.split(',', 1)[1] if ',' in data_url else data_url
-
-                            # ファイル名を生成（file_idの最初の8文字を使用）
-                            image_filename = f"{file_id[:8]}.{ext}"
-                            image_path = file_path.parent / image_filename
-
-                            # 画像ファイルを保存
-                            try:
-                                image_bytes = base64.b64decode(base64_data)
-                                with open(image_path, 'wb') as img_file:
-                                    img_file.write(image_bytes)
-
-                                # ファイル名をマッピングに追加
-                                image_files_map[file_id] = image_filename
-
-                                # dataURLを削除してファイルサイズを削減
-                                # Obsidianプラグインは元のdataURLも保持するが、
-                                # ここでは削除してファイルサイズを削減
-                                del file_data['dataURL']
-
-                                print(f"Saved image: {image_path}")
-                            except Exception as e:
-                                print(f"Warning: Failed to save image {image_filename}: {e}")
-
-            # 既存コンテンツの読み込み（Frontmatter維持のため）
             if file_path.exists():
                 try:
                     with open(file_path, 'r', encoding='utf-8') as f:
                         original_md_content = f.read()
+                    
+                    # 既存のEmbedded Filesセクションを解析してマッピングを作成
+                    embedded_match = re.search(r'## Embedded Files\n(.*?)\n(?=##|\Z)', original_md_content, re.DOTALL)
+                    if embedded_match:
+                        for line in embedded_match.group(1).split('\n'):
+                            if ':' in line and '[[' in line:
+                                parts = line.split(':', 1)
+                                fid = parts[0].strip()
+                                link_match = re.search(r'\[\[(.*?)\]\]', parts[1])
+                                if link_match:
+                                    existing_embedded_files[fid] = link_match.group(1)
                 except Exception as e:
                     print(f"Warning: Failed to read existing obsidian file: {e}")
+
+            # 画像を外部ファイルとして保存
+            files = data_to_save.get('files', {})
+            if files:
+                for file_id, file_data in files.items():
+                    # dataURLがある場合のみ保存（外部リソースでない場合）
+                    if 'dataURL' in file_data and file_data['dataURL'].startswith('data:'):
+                        try:
+                            # dataURLからバイナリデータを取得
+                            header, encoded = file_data['dataURL'].split(',', 1)
+                            mime_type = header.split(':')[1].split(';')[0]
+                            ext = mime_type.split('/')[1]
+                            if ext == 'svg+xml': ext = 'svg'
+                            
+                            image_bytes = base64.b64decode(encoded)
+                            
+                            # 保存先ファイル名を決定
+                            # 既存のリンクがある場合はそれを優先（ファイル名とパスを維持）
+                            if file_id in existing_embedded_files:
+                                current_link = existing_embedded_files[file_id]
+                                # リンクがパスを含んでいる場合、その場所を探して上書きする
+                                # 例: "assets/image.png" -> assetsフォルダを探す
+                                
+                                # 1. まずは絶対パス解決を試みる（既存 logic + vault root logic）
+                                target_image_path = file_path.parent / current_link
+                                if not target_image_path.parent.exists():
+                                    # 親フォルダがない場合、Vaultルートからの相対パスかもしれない
+                                    vault_root = find_vault_root(file_path)
+                                    if vault_root:
+                                        target_image_path = vault_root / current_link
+                                
+                                # それでもフォルダがない場合、あるいはファイルが存在しない場合でも
+                                # 既存リンクが示す意図を尊重して、そのパス（の親ディレクトリ）が存在すればそこに保存したい
+                                # ここでは簡単のため、「親ディレクトリが存在すればそこに保存」とする
+                                if not target_image_path.parent.exists():
+                                     # フォルダが見つからない場合は、やむを得ずカレント（file_pathと同じ場所）にフォールバック
+                                     # ただし、ファイル名は維持する (basenameのみ)
+                                     filename = os.path.basename(current_link)
+                                     target_image_path = file_path.parent / filename
+                                
+                                # マッピング更新（埋め込み用リンク文字列は変更しない）
+                                image_files_map[file_id] = current_link
+
+                            else:
+                                # 新規画像の場合
+                                filename = f"{file_id}.{ext}"
+                                target_image_path = file_path.parent / filename
+                                image_files_map[file_id] = filename
+
+                            # 親ディレクトリ作成（念のため）
+                            target_image_path.parent.mkdir(parents=True, exist_ok=True)
+
+                            # 画像保存
+                            with open(target_image_path, 'wb') as f:
+                                f.write(image_bytes)
+                                
+                            print(f"Saved image: {target_image_path}")
+
+                        except Exception as e:
+                            print(f"Warning: Failed to save image {file_id}: {e}")
+            
+            # dataURLを削除してファイルサイズを削減
+            # Obsidianプラグインは元のdataURLも保持するが、
+            # ここでは削除してファイルサイズを削減
+            for file_id, file_data in files.items():
+                if 'dataURL' in file_data:
+                    del file_data['dataURL']
+
 
         # バックアップを作成（Obsidianファイル以外）
         if not is_obsidian:
