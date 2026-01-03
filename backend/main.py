@@ -906,9 +906,12 @@ async def get_file_info(filepath: str):
 
         file_path = Path(decoded_filepath)
 
-        # ファイルが存在しない場合
+        # ファイルが存在しない場合は exists: False を返す
         if not file_path.exists():
-            raise HTTPException(status_code=404, detail="File not found")
+            return {
+                "modified": 0,
+                "exists": False,
+            }
 
         # Obsidianファイルの場合はMarkdownから抽出
         if is_obsidian_path(str(file_path)):
@@ -928,11 +931,19 @@ async def get_file_info(filepath: str):
         }
 
     except FileNotFoundError:
-        raise HTTPException(status_code=404, detail="File not found")
+        # ファイルが見つからない場合も exists: False を返す
+        return {
+            "modified": 0,
+            "exists": False,
+        }
     except Exception as e:
         print(f"An unexpected error occurred in get_file_info: {e}")
         traceback.print_exc()
-        raise HTTPException(status_code=500, detail=f"Error getting file info: {str(e)}")
+        # エラーの場合も exists: False を返す（500エラーを避ける）
+        return {
+            "modified": 0,
+            "exists": False,
+        }
 
 
 def _normalize_filepath(raw_path: str) -> str:

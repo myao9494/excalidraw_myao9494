@@ -680,30 +680,97 @@ export default function ExampleApp({
       let dataToLoad;
 
       if (currentFilePath) {
-        // ファイルパスが指定されている場合はファイルから読み込み
-        const fileResult = await loadExcalidrawFile(currentFilePath);
-        if (fileResult) {
-          const { data: fileData, hash } = fileResult;
-          dataToLoad = {
-            ...initialData,
-            elements: fileData.elements.length > 0 ? fileData.elements : convertToExcalidrawElements(initialData.elements),
-            appState: fileData.appState ? { ...initialData.appState, ...fileData.appState } : initialData.appState,
-            files: fileData.files || {},
-          };
+        // ファイルパスが指定されている場合は、まず存在確認を行う
+        try {
+          // .excalidraw の場合は .excalidraw.md も確認する（Obsidian対応）
+          let actualFilePath = currentFilePath;
+          let fileInfo = await getFileInfo(currentFilePath, { silent: true });
 
-          const resolvedHash = hash || '';
-          setLastFileHash(resolvedHash);
-          lastFileHashRef.current = resolvedHash;
-          externalUpdateNotifiedHashRef.current = resolvedHash;
-          // 初期読み込み時の要素を記録
-          const initialSummary = buildElementSummary(
-            fileData.elements as NonDeletedExcalidrawElement[],
-            0,
-          );
-          setLastSavedElements(initialSummary);
-          lastSavedElementsRef.current = initialSummary;
-        } else {
-          // ファイルが存在しない場合は初期データを使用
+          // .excalidraw で見つからず、.excalidraw.md が存在する場合はそちらを使用
+          if ((!fileInfo || !fileInfo.exists) && currentFilePath.endsWith('.excalidraw')) {
+            const mdFilePath = currentFilePath + '.md';
+            const mdFileInfo = await getFileInfo(mdFilePath, { silent: true });
+            if (mdFileInfo && mdFileInfo.exists) {
+              actualFilePath = mdFilePath;
+              fileInfo = mdFileInfo;
+              console.log(`[Load] Using Obsidian file: ${mdFilePath}`);
+            }
+          }
+
+          // ファイルが存在する場合のみ読み込みを行う
+          if (fileInfo && fileInfo.exists) {
+            try {
+              const fileResult = await loadExcalidrawFile(actualFilePath);
+              if (fileResult) {
+                const { data: fileData, hash } = fileResult;
+                dataToLoad = {
+                  ...initialData,
+                  elements: fileData.elements.length > 0 ? fileData.elements : convertToExcalidrawElements(initialData.elements),
+                  appState: fileData.appState ? { ...initialData.appState, ...fileData.appState } : initialData.appState,
+                  files: fileData.files || {},
+                };
+
+                const resolvedHash = hash || '';
+                setLastFileHash(resolvedHash);
+                lastFileHashRef.current = resolvedHash;
+                externalUpdateNotifiedHashRef.current = resolvedHash;
+                // 初期読み込み時の要素を記録
+                const initialSummary = buildElementSummary(
+                  fileData.elements as NonDeletedExcalidrawElement[],
+                  0,
+                );
+                setLastSavedElements(initialSummary);
+                lastSavedElementsRef.current = initialSummary;
+              } else {
+                // ファイル読み込みに失敗した場合は初期データを使用
+                dataToLoad = {
+                  ...initialData,
+                  elements: convertToExcalidrawElements(initialData.elements),
+                  appState: initialData.appState,
+                  files: {},
+                };
+                const emptySummary = buildElementSummary([]);
+                setLastSavedElements(emptySummary);
+                lastSavedElementsRef.current = emptySummary;
+                setLastFileHash('');
+                lastFileHashRef.current = '';
+                externalUpdateNotifiedHashRef.current = '';
+              }
+            } catch (loadError) {
+              // ファイル読み込みエラーの場合は初期データを使用
+              console.warn('ファイルの読み込みに失敗しました。新規ファイルとして開始します:', loadError);
+              dataToLoad = {
+                ...initialData,
+                elements: convertToExcalidrawElements(initialData.elements),
+                appState: initialData.appState,
+                files: {},
+              };
+              const emptySummary = buildElementSummary([]);
+              setLastSavedElements(emptySummary);
+              lastSavedElementsRef.current = emptySummary;
+              setLastFileHash('');
+              lastFileHashRef.current = '';
+              externalUpdateNotifiedHashRef.current = '';
+            }
+          } else {
+            // ファイルが存在しない場合は新規ファイルとして初期データを使用
+            console.log('新規ファイルとして開始します:', currentFilePath);
+            dataToLoad = {
+              ...initialData,
+              elements: convertToExcalidrawElements(initialData.elements),
+              appState: initialData.appState,
+              files: {},
+            };
+            const emptySummary = buildElementSummary([]);
+            setLastSavedElements(emptySummary);
+            lastSavedElementsRef.current = emptySummary;
+            setLastFileHash('');
+            lastFileHashRef.current = '';
+            externalUpdateNotifiedHashRef.current = '';
+          }
+        } catch (error) {
+          // getFileInfo自体が失敗した場合も新規ファイルとして扱う
+          console.warn('ファイル情報の取得に失敗しました。新規ファイルとして開始します:', error);
           dataToLoad = {
             ...initialData,
             elements: convertToExcalidrawElements(initialData.elements),
