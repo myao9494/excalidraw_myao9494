@@ -861,9 +861,11 @@ async def load_file(filepath: str):
 
                     # サロゲート文字をクリーンアップしてレスポンスを返す
                     clean_data = clean_surrogates(data)
+                    # ファイルの修正日時を取得
+                    file_modified = file_path.stat().st_mtime
                     return {
                         "data": clean_data,
-                        "modified": 0,
+                        "modified": file_modified,
                         "hash": data_hash,
                     }
                 except Exception as e:
@@ -913,6 +915,9 @@ async def get_file_info(filepath: str):
                 "exists": False,
             }
 
+        # ファイルの修正日時を取得
+        file_modified = file_path.stat().st_mtime
+        
         # Obsidianファイルの場合はMarkdownから抽出
         if is_obsidian_path(str(file_path)):
             with open(file_path, "r", encoding="utf-8") as f:
@@ -925,7 +930,7 @@ async def get_file_info(filepath: str):
         data_hash = compute_data_hash(data)
 
         return {
-            "modified": 0,
+            "modified": file_modified,
             "hash": data_hash,
             "exists": True,
         }
@@ -1289,11 +1294,13 @@ async def save_file(request: SaveFileRequest):
                     raise HTTPException(status_code=500, detail="Failed to save file due to a persistent file lock.")
 
         data_hash = compute_data_hash(data_to_save)
+        # 保存後のファイル修正日時を取得
+        file_modified = file_path.stat().st_mtime
 
         return {
             "success": True,
             "message": f"File saved to {request.filepath}",
-            "modified": 0,
+            "modified": file_modified,
             "hash": data_hash,
         }
     

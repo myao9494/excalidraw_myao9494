@@ -563,6 +563,8 @@ export default function ExampleApp({
   const lastFileHashRef = useRef<string>('');
   const externalUpdateNotifiedHashRef = useRef<string>('');
   const saveInProgressRef = useRef<boolean>(false);
+  // .excalidraw.md ファイル用のタイムスタンプ追跡
+  const lastFileModifiedRef = useRef<number>(0);
 
   // refの値を更新
   useEffect(() => {
@@ -702,7 +704,7 @@ export default function ExampleApp({
             try {
               const fileResult = await loadExcalidrawFile(actualFilePath);
               if (fileResult) {
-                const { data: fileData, hash } = fileResult;
+                const { data: fileData, hash, modified } = fileResult;
                 dataToLoad = {
                   ...initialData,
                   elements: fileData.elements.length > 0 ? fileData.elements : convertToExcalidrawElements(initialData.elements),
@@ -714,6 +716,10 @@ export default function ExampleApp({
                 setLastFileHash(resolvedHash);
                 lastFileHashRef.current = resolvedHash;
                 externalUpdateNotifiedHashRef.current = resolvedHash;
+                // .excalidraw.md ファイルの場合はタイムスタンプも記録
+                if (actualFilePath.endsWith('.excalidraw.md') && modified) {
+                  lastFileModifiedRef.current = modified;
+                }
                 // 初期読み込み時の要素を記録
                 const initialSummary = buildElementSummary(
                   fileData.elements as NonDeletedExcalidrawElement[],
@@ -976,22 +982,31 @@ export default function ExampleApp({
           const fileInfo = await getFileInfo(currentFilePathValue);
           if (fileInfo?.exists) {
             const remoteHash = fileInfo.hash || '';
+            const remoteModified = fileInfo.modified || 0;
+            const isObsidianFile = currentFilePathValue.endsWith('.excalidraw.md');
             if (remoteHash) {
               latestRemoteHash = remoteHash;
             }
 
-            const hasExternalUpdate =
-              !skipConflictDetection &&
-              !!remoteHash &&
-              remoteHash !== lastFileHashRef.current;
+            // .excalidraw.md はタイムスタンプで、それ以外はハッシュで外部更新を検出
+            let hasExternalUpdate = false;
+            if (!skipConflictDetection) {
+              if (isObsidianFile) {
+                hasExternalUpdate = remoteModified > 0 && remoteModified > lastFileModifiedRef.current;
+              } else {
+                hasExternalUpdate = !!remoteHash && remoteHash !== lastFileHashRef.current;
+              }
+            }
 
             if (hasExternalUpdate) {
-              if (remoteHash) {
+              if (isObsidianFile) {
+                lastFileModifiedRef.current = remoteModified;
+              } else if (remoteHash) {
                 externalUpdateNotifiedHashRef.current = remoteHash;
               }
 
               // Obsidianファイル（.excalidraw.md）の場合は、確認ダイアログを表示せず自動的に最新を読み込んで保存
-              if (currentFilePathValue.endsWith('.excalidraw.md')) {
+              if (isObsidianFile) {
                 try {
                   const fileResult = await loadExcalidrawFile(currentFilePathValue);
                   if (fileResult) {
@@ -1082,6 +1097,10 @@ export default function ExampleApp({
               lastFileHashRef.current = resolvedHash;
               externalUpdateNotifiedHashRef.current = resolvedHash;
             }
+            // .excalidraw.md の場合はタイムスタンプも更新
+            if (currentFilePathValue.endsWith('.excalidraw.md') && saveResult.modified) {
+              lastFileModifiedRef.current = saveResult.modified;
+            }
 
             if (conflictOverwrite) {
               showSaveNotification('最新の内容をバックアップして上書き保存しました');
@@ -1131,12 +1150,27 @@ export default function ExampleApp({
         return;
       }
 
+      // .excalidraw.md ファイルはタイムスタンプベースで更新検知
+      const isObsidianFile = currentFilePath.endsWith('.excalidraw.md');
+      const remoteModified = fileInfo.modified || 0;
       const remoteHash = fileInfo.hash || '';
-      const hasNewerVersion = !!remoteHash && remoteHash !== lastFileHashRef.current;
-      const alreadyNotified = remoteHash === externalUpdateNotifiedHashRef.current;
+
+      let hasNewerVersion = false;
+      if (isObsidianFile) {
+        // タイムスタンプベースで比較（修正日時が新しければ更新あり）
+        hasNewerVersion = remoteModified > 0 && remoteModified > lastFileModifiedRef.current;
+      } else {
+        // ハッシュベースで比較
+        hasNewerVersion = !!remoteHash && remoteHash !== lastFileHashRef.current;
+      }
+      const alreadyNotified = isObsidianFile
+        ? remoteModified === lastFileModifiedRef.current
+        : remoteHash === externalUpdateNotifiedHashRef.current;
 
       if (hasNewerVersion && !alreadyNotified) {
-        if (remoteHash) {
+        if (isObsidianFile) {
+          lastFileModifiedRef.current = remoteModified;
+        } else if (remoteHash) {
           externalUpdateNotifiedHashRef.current = remoteHash;
         }
 
