@@ -740,7 +740,16 @@ export default function ExampleApp({
                 dataToLoad = {
                   ...initialData,
                   elements: fileData.elements.length > 0 ? fileData.elements : convertToExcalidrawElements(initialData.elements),
-                  appState: fileData.appState ? { ...initialData.appState, ...fileData.appState } : initialData.appState,
+                  appState: fileData.appState
+                    ? {
+                      ...initialData.appState,
+                      ...fileData.appState,
+                      collaborators:
+                        fileData.appState.collaborators instanceof Map
+                          ? fileData.appState.collaborators
+                          : new Map(Object.entries(fileData.appState.collaborators || {})),
+                    }
+                    : initialData.appState,
                   files: fileData.files || {},
                 };
 
@@ -939,7 +948,15 @@ export default function ExampleApp({
       }
 
       const newElements = fileData.elements && fileData.elements.length > 0 ? fileData.elements : [];
-      const newAppState = fileData.appState ? { ...fileData.appState } : {};
+      const newAppState = fileData.appState
+        ? {
+          ...fileData.appState,
+          collaborators:
+            fileData.appState.collaborators instanceof Map
+              ? fileData.appState.collaborators
+              : new Map(Object.entries(fileData.appState.collaborators || {})),
+        }
+        : {};
       const newFiles = fileData.files || {};
 
       excalidrawAPI.updateScene({
