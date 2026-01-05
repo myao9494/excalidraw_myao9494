@@ -84,13 +84,6 @@ const getApiBaseUrl = (): string => {
 
 export const API_BASE_URL = getApiBaseUrl();
 
-interface BackendOpenFileResponse {
-  success: boolean;
-  targetType?: 'file' | 'directory';
-  resolvedPath?: string;
-  message?: string;
-}
-
 interface BackendRunCommandResponse {
   success: boolean;
   command: string;
@@ -98,39 +91,41 @@ interface BackendRunCommandResponse {
   error?: string;
 }
 
-export const openFileViaBackend = async (filePath: string): Promise<boolean> => {
-  try {
-    const response = await fetch(`${API_BASE_URL}/api/open-file`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ filepath: filePath }),
-    });
+export interface BackendOpenFileResponse {
+  success: boolean;
+  targetType?: string;
+  resolvedPath?: string;
+  message?: string;
+}
 
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
-    }
-
-    const result = (await response.json()) as BackendOpenFileResponse;
-
-    if (!result.success) {
-      throw new Error(result.message || 'Backend reported failure');
-    }
-
-    return true;
-  } catch (error) {
-    console.error('Error opening file via backend:', error);
-    if (typeof window !== 'undefined' && window.alert) {
-      window.alert('ファイルまたはフォルダを開けませんでした。パスをご確認ください。');
-    }
-    return false;
-  }
-};
 
 const normalizeFolderPath = (rawPath: string): string => {
   // Windowsの区切り文字も考慮してスラッシュに統一
   return rawPath.replace(/\\/g, '/');
+};
+
+/**
+ * バックエンド（localhost:8001）が利用可能かチェックする
+ * @param timeoutMs タイムアウト（ミリ秒）
+ */
+export const checkBackendAvailable = async (timeoutMs: number = 500): Promise<boolean> => {
+  try {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+
+    // 単純にルートへの接続確認を行う (mode: 'no-cors' でCORSエラーを無視して接続可否だけ見る)
+    await fetch('http://localhost:8001', {
+      method: 'HEAD',
+      mode: 'no-cors',
+      signal: controller.signal,
+    });
+
+    clearTimeout(timeoutId);
+    return true;
+  } catch (error) {
+    // タイムアウトや接続拒否などの場合はfalse
+    return false;
+  }
 };
 
 const resolveFolderFromUrlParam = (): string | undefined => {
@@ -193,6 +188,31 @@ export const runCommandViaBackend = async (
       window.alert('コマンドを実行できませんでした。コマンドの形式を確認してください。');
     }
     return false;
+  }
+};
+
+/**
+ * 従来のバックエンド（port 8008等）を経由してファイルを開く
+ * localhost:8001 が使えない場合のフォールバック用
+ */
+export const openFileViaBackend = async (filePath: string): Promise<BackendOpenFileResponse> => {
+  try {
+    const response = await fetch(`${API_BASE_URL}/api/open-file`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ filepath: filePath }),
+    });
+
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+
+    return (await response.json()) as BackendOpenFileResponse;
+  } catch (error) {
+    console.error('Error opening file via backend:', error);
+    throw error;
   }
 };
 
@@ -684,10 +704,41 @@ export const handleStickyNoteLink = async (linkUrl: string, currentFolder?: stri
       currentUrl.searchParams.set('filepath', trimmedLink);
       window.open(currentUrl.toString(), '_blank', 'noopener');
     } else {
-      // Excalidraw以外のファイルはバックエンド経由で開く
-      const opened = await openFileViaBackend(trimmedLink);
-      if (!opened) {
-        return;
+      // Excalidraw以外のファイルはlocalhost:8001のAPI経由で開く
+      // http://localhost:8001/api/open-path?path={ファイルフルパス または フォルダフルパス}
+      try {
+        const encodedPath = encodeURIComponent(trimmedLink);
+        const openUrl = `http://localhost:8001/api/open-path?path=${encodedPath}`;
+
+        // ポップアップブロッカー回避のため、先にウィンドウを開く
+        const newWindow = window.open('about:blank', '_blank');
+
+        if (newWindow) {
+          // サーバーの稼働確認を行ってからリダイレクト先を決定
+          checkBackendAvailable().then((isAvailable) => {
+            if (isAvailable) {
+              newWindow.location.href = openUrl;
+            } else {
+              // バックエンドがダウンしている場合は、従来のリンク（ローカルパスなど）をそのまま開く
+              console.warn('Backend (localhost:8001) is down. Fallback to internal backend.');
+
+              // New fallback: internal backend call
+              openFileViaBackend(trimmedLink).then(() => {
+                // Success - close the blank window as system handler took over
+                newWindow.close();
+              }).catch(err => {
+                console.error('Fallback to internal backend also failed:', err);
+                // Final fallback: try to open raw link in the window
+                newWindow.location.href = trimmedLink;
+              });
+            }
+          });
+        }
+      } catch (error) {
+        console.error('Error opening file via localhost:8001:', error);
+        if (typeof window !== 'undefined' && window.alert) {
+          window.alert('ファイルを開く処理中にエラーが発生しました。');
+        }
       }
     }
   } catch (error) {

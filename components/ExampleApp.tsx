@@ -36,10 +36,11 @@ import {
   saveExcalidrawFile,
   getFileInfo,
   handleStickyNoteLink,
-  openFileViaBackend,
   exportToSvgFile,
   isExcalidrawFile,
   formatLoadFileError,
+  checkBackendAvailable, // Added import
+  openFileViaBackend,
   type ExcalidrawFileData,
   type LoadFileError
 } from "../utils/fileUtils";
@@ -245,27 +246,43 @@ const openInFileExplorer = async (currentFolder: string | null) => {
   }
 
   try {
-    const currentHost = window.location.hostname;
-    const response = await fetch(`http://${currentHost}:8008/api/open-folder`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        path: folderPath,
-      }),
-    });
+    const encodedPath = encodeURIComponent(folderPath);
+    // http://localhost:8001/api/open-path?path={フォルダパス}
+    const openUrl = `http://localhost:8001/api/open-path?path=${encodedPath}`;
 
-    const result = await response.json().catch(() => null);
+    // ポップアップブロッカー回避のため、先にウィンドウを開く
+    const newWindow = window.open('about:blank', '_blank');
 
-    if (!response.ok || !result?.success) {
-      const message = (result && (result.detail || result.error)) || 'フォルダを開くことができませんでした。';
-      console.error('フォルダを開く処理でエラー:', message);
-      alert(message);
-      return;
+    if (newWindow) {
+      checkBackendAvailable().then(isAvailable => {
+        if (isAvailable) {
+          newWindow.location.href = openUrl;
+        } else {
+          console.warn('Backend (localhost:8001) is down. Fallback to internal backend.');
+
+          // Fallback: internal backend /api/open-folder
+          const currentHost = window.location.hostname || "localhost";
+          fetch(`http://${currentHost}:8008/api/open-folder`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ path: folderPath })
+          }).then(res => {
+            if (res.ok) {
+              newWindow.close();
+              console.log('Opened folder via internal backend');
+            } else {
+              console.warn('Internal backend open-folder failed, trying raw path');
+              newWindow.location.href = folderPath;
+            }
+          }).catch(err => {
+            console.error('Internal backend open-folder error:', err);
+            newWindow.location.href = folderPath;
+          });
+        }
+      });
     }
 
-    console.log('ファイルマネージャーでフォルダを開きました:', result.openedPath || folderPath);
+    console.log('ファイルマネージャーでフォルダを開きました:', folderPath);
   } catch (error) {
     console.error('フォルダを開く処理で例外が発生しました:', error);
     alert('フォルダを開く処理でエラーが発生しました。詳細はコンソールを確認してください。');
@@ -649,11 +666,26 @@ export default function ExampleApp({
 
     // URLパラメータでファイルパスが指定されている場合の処理
     if (filePath) {
-      // Excalidrawファイル以外の場合はfile viewerを新しいタブで開く
+      // Excalidrawファイル以外の場合はlocalhost:8001経由で開く
       if (!isExcalidrawFile(filePath)) {
-        void openFileViaBackend(filePath);
-        // URLパラメータをクリアして元の状態に戻す
-        window.history.replaceState({}, document.title, window.location.pathname);
+        const encodedPath = encodeURIComponent(filePath);
+        const openUrl = `http://localhost:8001/api/open-path?path=${encodedPath}`;
+
+        // バックエンドの稼働状況を確認
+        checkBackendAvailable().then(isAvailable => {
+          if (isAvailable) {
+            // 307 Redirectでビューアーに飛ばされるため、現在のタブを移動させる
+            window.location.href = openUrl;
+          } else {
+            console.warn('Backend (localhost:8001) is down. Fallback to internal backend.');
+            // Fallback to internal backend
+            openFileViaBackend(filePath).catch(err => {
+              console.error('Fallback internal backend failed:', err);
+              // Final fallback
+              window.location.href = filePath;
+            });
+          }
+        });
         return;
       }
     }

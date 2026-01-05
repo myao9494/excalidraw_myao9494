@@ -389,7 +389,6 @@ class OpenFolderResponse(BaseModel):
     openedPath: Optional[str] = None
     error: Optional[str] = None
 
-
 class RunCommandRequest(BaseModel):
     command: str
     working_directory: Optional[str] = None
@@ -1048,6 +1047,8 @@ def _normalize_filepath(raw_path: str) -> str:
     return expanded
 
 
+
+
 def _launch_with_system(path_str: str) -> None:
     """Open file or directory with the OS-specific default handler."""
     if sys.platform.startswith('win'):
@@ -1151,6 +1152,8 @@ def _spawn_system_command(command: str, cwd: Optional[str] = None) -> subprocess
     )
 
 
+
+
 @app.post("/api/open-file", response_model=OpenFileResponse)
 async def open_file_post(request: OpenFileRequest):
     return await _open_path_via_os(request.filepath)
@@ -1167,9 +1170,9 @@ async def open_file_get(filepath: str):
         message = exc.detail if isinstance(exc.detail, str) else "Failed to open path"
         escaped_message = escape(message)
         error_html = f"""<!DOCTYPE html>
-<html lang=\"ja\">
+<html lang="ja">
   <head>
-    <meta charset=\"utf-8\" />
+    <meta charset="utf-8" />
     <title>Open File Error</title>
   </head>
   <body>
@@ -1180,9 +1183,9 @@ async def open_file_get(filepath: str):
 
     escaped_message = escape(result.message or 'Opened path via system handler.')
     auto_close_html = f"""<!DOCTYPE html>
-<html lang=\"ja\">
+<html lang="ja">
   <head>
-    <meta charset=\"utf-8\" />
+    <meta charset="utf-8" />
     <title>Open File</title>
     <script>
       window.addEventListener('DOMContentLoaded', () => {{
@@ -1606,7 +1609,7 @@ async def save_svg(request: SaveSvgRequest):
         print(f"Error saving SVG file: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Error saving SVG file: {str(e)}")
 
-# フォルダをOSのファイルマネージャーで開く
+
 @app.post("/api/open-folder", response_model=OpenFolderResponse)
 async def open_folder(request: OpenFolderRequest):
     try:
@@ -1639,6 +1642,7 @@ async def open_folder(request: OpenFolderRequest):
         raise HTTPException(status_code=404, detail="Folder not found")
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error opening folder: {str(e)}")
+
 
 
 @app.post("/api/list-directory", response_model=ListDirectoryResponse)
