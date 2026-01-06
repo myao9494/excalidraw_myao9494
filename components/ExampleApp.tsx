@@ -774,16 +774,20 @@ export default function ExampleApp({
                 // Obsidian互換モードの処理: .excalidraw を開いた場合の自動変換
                 // --------------------------------------------------------------------------------
                 // 1. .excalidraw ファイルを開いており、かつ Obsidian フォルダ内であるか確認
-                const { isObsidianPath } = await import('../utils/fileUtils'); // 動的インポートまたは既存インポートを使用
+                // const { isObsidianPath } = await import('../utils/fileUtils'); // 既にトップレベルでimport済み
 
-                if (currentFilePath.endsWith('.excalidraw') && isObsidianPath(currentFilePath)) {
-                  // console.log('[Obsidian Compat] .excalidraw file detected in Obsidian folder.');
+                const isObsidian = isObsidianPath(currentFilePath);
+                console.log(`[Obsidian Compat] Checking... Path: ${currentFilePath}, isObsidian: ${isObsidian}`);
+
+                if (currentFilePath.endsWith('.excalidraw') && isObsidian) {
+                  console.log('[Obsidian Compat] .excalidraw file detected in Obsidian folder.');
 
                   // .excalidraw.md のパスを構築
                   const mdFilePath = currentFilePath + '.md'; // 例: test.excalidraw -> test.excalidraw.md
 
                   // 既に .excalidraw.md が存在するか確認 (getFileInfoはbackend/main.pyのAPIを叩く)
                   const mdFileInfo = await getFileInfo(mdFilePath, { silent: true });
+                  console.log(`[Obsidian Compat] Checking for existing MD file: ${mdFilePath} -> exists: ${mdFileInfo?.exists}`);
 
                   if (mdFileInfo && mdFileInfo.exists) {
                     // A. 同名の .excalidraw.md が既に存在する場合 -> そちらに切り替える（優先読み込み）
@@ -829,6 +833,7 @@ export default function ExampleApp({
                     // 現在のデータを即座に .excalidraw.md として保存
                     // saveExcalidrawFile はバックエンド側で拡張子を見て Obsidian形式に変換してくれる
                     const saveResult = await saveExcalidrawFile(mdFilePath, dataToLoad as ExcalidrawFileData, true);
+                    console.log('[Obsidian Compat] Save result:', saveResult);
 
                     if (saveResult && saveResult.success) {
                       console.log('[Obsidian Compat] Successfully created .excalidraw.md. Switching context.');
@@ -848,6 +853,10 @@ export default function ExampleApp({
                       // 元のファイル (currentFilePath = .excalidraw) は残す（要件通り）
                     } else {
                       console.error('[Obsidian Compat] Failed to create .excalidraw.md', saveResult);
+                      // エラー理由を表示するアラートなどを出すべきかもしれないが、まずはコンソールエラーのみ
+                      if (!saveResult?.success && saveResult?.message) {
+                        console.warn(`[Obsidian Compat] Reason: ${saveResult.message}`);
+                      }
                     }
                   }
                 }

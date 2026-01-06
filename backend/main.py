@@ -1004,7 +1004,8 @@ async def get_file_info(filepath: str):
         file_modified = file_path.stat().st_mtime
         
         # Obsidianファイルの場合はMarkdownから抽出
-        if is_obsidian_path(str(file_path)):
+        # .excalidraw の場合はJSONとして扱う（Obsidianフォルダ内でも）
+        if is_obsidian_path(str(file_path)) and str(file_path).endswith('.excalidraw.md'):
             with open(file_path, "r", encoding="utf-8") as f:
                 markdown_content = f.read()
             json_str = extract_json_from_markdown(markdown_content)
