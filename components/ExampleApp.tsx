@@ -41,6 +41,7 @@ import {
   formatLoadFileError,
   checkBackendAvailable, // Added import
   openFileViaBackend,
+  isObsidianPath,
   type ExcalidrawFileData,
   type LoadFileError
 } from "../utils/fileUtils";
@@ -768,6 +769,90 @@ export default function ExampleApp({
                 );
                 setLastSavedElements(initialSummary);
                 lastSavedElementsRef.current = initialSummary;
+
+                // --------------------------------------------------------------------------------
+                // Obsidian互換モードの処理: .excalidraw を開いた場合の自動変換
+                // --------------------------------------------------------------------------------
+                // 1. .excalidraw ファイルを開いており、かつ Obsidian フォルダ内であるか確認
+                const { isObsidianPath } = await import('../utils/fileUtils'); // 動的インポートまたは既存インポートを使用
+
+                if (currentFilePath.endsWith('.excalidraw') && isObsidianPath(currentFilePath)) {
+                  // console.log('[Obsidian Compat] .excalidraw file detected in Obsidian folder.');
+
+                  // .excalidraw.md のパスを構築
+                  const mdFilePath = currentFilePath + '.md'; // 例: test.excalidraw -> test.excalidraw.md
+
+                  // 既に .excalidraw.md が存在するか確認 (getFileInfoはbackend/main.pyのAPIを叩く)
+                  const mdFileInfo = await getFileInfo(mdFilePath, { silent: true });
+
+                  if (mdFileInfo && mdFileInfo.exists) {
+                    // A. 同名の .excalidraw.md が既に存在する場合 -> そちらに切り替える（優先読み込み）
+                    console.log(`[Obsidian Compat] switching to existing ${mdFilePath}`);
+
+                    // 現在のパスを更新
+                    setCurrentFilePath(mdFilePath);
+                    // URLも更新 (リロードなしで履歴追加)
+                    const newUrl = new URL(window.location.href);
+                    newUrl.searchParams.set('filepath', mdFilePath);
+                    window.history.pushState({}, '', newUrl.toString());
+
+                    // MDファイルの内容で再読み込みが必要だが、
+                    // 今回の loadExchangeFile(actualFilePath) で既に MDファイルを読んでいる可能性がある
+                    // (さっきの logic: if ... actualFilePath = mdFilePath ... )
+
+                    // 上記 logic (lines 724-732) で既に actualFilePath が mdFilePath になっている場合、
+                    // dataData は既に MDファイルの中身。
+                    // そうでない場合（.excalidrawの中身を読んだ場合）は、ここに来る前に切り替わっているはず
+                    // しかし念のため、明示的にリロードするか、あるいは state を更新するだけで良いか確認。
+
+                    // さっきのロジック:
+                    // if ((!fileInfo || !fileInfo.exists) && currentFilePath.endsWith('.excalidraw')) { ... }
+                    // これは「.excalidraw が存在しない場合」のフォールバックだった。
+                    // 今回の要件は「.excalidraw も .excalidraw.md も両方ある場合」の話。
+
+                    // もし両方ある場合、さっきのロジックはスキップされ、.excalidraw が読み込まれている。
+                    // なので、ここで改めて .excalidraw.md を読み直す必要がある。
+
+                    // ロジック簡略化のため、再帰的に読み込むよりは、
+                    // ここで強制的にリロード（または再取得）するのが安全。
+                    // ただし無限ループしないように注意。
+
+                    // ここでは「ページリロード」させてしまうのが一番確実で手っ取り早い
+                    // window.location.reload() だとループする可能性があるので、
+                    // URLを書き換えてからリロードする。
+                    window.location.href = newUrl.toString();
+                    return; // 処理中断
+                  } else {
+                    // B. .excalidraw.md が存在しない場合 -> 自動変換して作成
+                    console.log(`[Obsidian Compat] converting to ${mdFilePath}`);
+
+                    // 現在のデータを即座に .excalidraw.md として保存
+                    // saveExcalidrawFile はバックエンド側で拡張子を見て Obsidian形式に変換してくれる
+                    const saveResult = await saveExcalidrawFile(mdFilePath, dataToLoad as ExcalidrawFileData, true);
+
+                    if (saveResult && saveResult.success) {
+                      console.log('[Obsidian Compat] Successfully created .excalidraw.md. Switching context.');
+
+                      // 成功したらコンテキストを切り替える
+                      setCurrentFilePath(mdFilePath);
+                      // URL更新
+                      const newUrl = new URL(window.location.href);
+                      newUrl.searchParams.set('filepath', mdFilePath);
+                      window.history.pushState({}, '', newUrl.toString());
+
+                      // lastFileHash と modified も更新が必要だが、
+                      // saveResult に含まれているはず
+                      if (saveResult.hash) setLastFileHash(saveResult.hash);
+                      if (saveResult.modified) lastFileModifiedRef.current = saveResult.modified;
+
+                      // 元のファイル (currentFilePath = .excalidraw) は残す（要件通り）
+                    } else {
+                      console.error('[Obsidian Compat] Failed to create .excalidraw.md', saveResult);
+                    }
+                  }
+                }
+                // --------------------------------------------------------------------------------
+
               } else {
                 // ファイル読み込みに失敗した場合は初期データを使用
                 dataToLoad = {

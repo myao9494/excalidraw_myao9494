@@ -605,6 +605,15 @@ export const isExcalidrawFile = (filePath: string): boolean => {
 };
 
 /**
+ * パスがObsidianフォルダ内にあるかを判定
+ * 簡易的にパスに 'obsidian' が含まれるかで判定
+ */
+export const isObsidianPath = (filePath: string): boolean => {
+  if (!filePath) return false;
+  return filePath.toLowerCase().includes('obsidian');
+};
+
+/**
  * 相対パスかどうかを判定
  */
 const isRelativePath = (path: string): boolean => {
