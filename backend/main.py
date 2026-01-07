@@ -1296,9 +1296,9 @@ async def save_file(request: SaveFileRequest):
         # Obsidian連携: パス判定と保存パス変更
         if is_obsidian_path(str(file_path)):
             is_obsidian = True
-             # .excalidraw リクエストだが、保存先を .excalidraw.md に変更（自動移行）
-            if file_path.suffix == '.excalidraw':
-                file_path = file_path.with_suffix('.excalidraw.md')
+            # 自動移行ロジックを削除: 保存時は拡張子を変更しない
+            # if file_path.suffix == '.excalidraw':
+            #     file_path = file_path.with_suffix('.excalidraw.md')
 
             # 画像を外部ファイルとして保存
             files = data_to_save.get('files', {})
@@ -1746,3 +1746,60 @@ async def serve_uploaded_file(file_path: str):
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=8008)
+
+class ArchiveFileRequest(BaseModel):
+    filepath: str
+
+class ArchiveFileResponse(BaseModel):
+    success: bool
+    archivedPath: Optional[str] = None
+    message: Optional[str] = None
+    error: Optional[str] = None
+
+@app.post("/api/archive-file", response_model=ArchiveFileResponse)
+async def archive_file(request: ArchiveFileRequest):
+    """
+    指定されたファイルをbackupフォルダに移動（アーカイブ）する。
+    ファイル名は {original_name}_{timestamp}{ext} となる。
+    """
+    try:
+        file_path = Path(request.filepath)
+        
+        if not file_path.exists():
+            return ArchiveFileResponse(success=False, error="File not found")
+            
+        # backupフォルダの作成
+        backup_dir = file_path.parent / "backup"
+        backup_dir.mkdir(exist_ok=True)
+        
+        # タイムスタンプ付きのファイル名を生成
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        new_filename = f"{file_path.stem}_{timestamp}{file_path.suffix}"
+        backup_path = backup_dir / new_filename
+        
+        # 移動実行
+        shutil.move(str(file_path), str(backup_path))
+        
+        # 相対パスを計算して返す
+        try:
+            archived_path_str = str(backup_path)
+            message = f"File archived to {new_filename}"
+        except Exception:
+            archived_path_str = str(backup_path)
+            message = "File archived successfully"
+            
+        print(f"[Archive] Moved {file_path} to {backup_path}")
+        
+        return ArchiveFileResponse(
+            success=True,
+            archivedPath=archived_path_str,
+            message=message
+        )
+        
+    except Exception as e:
+        print(f"Error archiving file: {e}")
+        return ArchiveFileResponse(
+            success=False,
+            error=str(e)
+        )
+

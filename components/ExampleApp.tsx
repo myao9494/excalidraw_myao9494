@@ -41,6 +41,7 @@ import {
   formatLoadFileError,
   checkBackendAvailable, // Added import
   openFileViaBackend,
+  archiveFile, // Added import
   isObsidianPath,
   type ExcalidrawFileData,
   type LoadFileError
@@ -850,7 +851,14 @@ export default function ExampleApp({
                       if (saveResult.hash) setLastFileHash(saveResult.hash);
                       if (saveResult.modified) lastFileModifiedRef.current = saveResult.modified;
 
-                      // 元のファイル (currentFilePath = .excalidraw) は残す（要件通り）
+                      // 元のファイルをアーカイブ（バックアップフォルダへ移動）
+                      archiveFile(currentFilePath).then(archiveResult => {
+                        if (archiveResult.success) {
+                          console.log('[Obsidian Compat] Archived original file:', archiveResult.archivedPath);
+                        } else {
+                          console.warn('[Obsidian Compat] Failed to archive original file:', archiveResult.error);
+                        }
+                      });
                     } else {
                       console.error('[Obsidian Compat] Failed to create .excalidraw.md', saveResult);
                       // エラー理由を表示するアラートなどを出すべきかもしれないが、まずはコンソールエラーのみ

@@ -54,6 +54,13 @@ export interface SaveFileResponse {
   hash?: string;
 }
 
+export interface ArchiveFileResponse {
+  success: boolean;
+  archivedPath?: string;
+  message?: string;
+  error?: string;
+}
+
 export const getFilePathFromUrl = (): string | null => {
   const urlParams = new URLSearchParams(window.location.search);
   const rawFilepath = urlParams.get('filepath');
@@ -914,6 +921,38 @@ export function formatJsonError(error: JsonErrorResponse): string {
 
   return message;
 }
+
+/**
+ * ファイルをアーカイブ（バックアップフォルダへ移動）する
+ */
+export const archiveFile = async (
+  filePath: string
+): Promise<ArchiveFileResponse> => {
+  try {
+    const response = await fetch(`${API_BASE_URL}/api/archive-file`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        filepath: filePath
+      })
+    });
+
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+
+    const result = await response.json();
+    return result;
+  } catch (error) {
+    console.error('Error archiving file:', error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error'
+    };
+  }
+};
 
 /**
  * LoadFileErrorをユーザー向けメッセージに整形
