@@ -28,7 +28,12 @@ free_port 3001
 # バックエンドサーバーの起動（port 8008）
 echo "バックエンドサーバーを起動中... (port 8008)"
 cd backend
-python -m uvicorn main:app --reload --host 0.0.0.0 --port 8008 &
+# 仮想環境がある場合はそれを使用
+if [ -d "venv" ]; then
+    ./venv/bin/python -m uvicorn main:app --reload --host 0.0.0.0 --port 8008 &
+else
+    python -m uvicorn main:app --reload --host 0.0.0.0 --port 8008 &
+fi
 BACKEND_PID=$!
 cd ..
 

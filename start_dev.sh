@@ -27,7 +27,13 @@ free_port 3001 # Viteの設定ファイルに合わせる
 
 # バックエンドサーバーの起動（port 8008）
 echo "バックエンドサーバーを起動中... (port 8008)"
-(cd backend && python -m uvicorn main:app --reload --host 0.0.0.0 --port 8008) &
+(cd backend && {
+    if [ -d "venv" ]; then
+        ./venv/bin/python -m uvicorn main:app --reload --host 0.0.0.0 --port 8008
+    else
+        python -m uvicorn main:app --reload --host 0.0.0.0 --port 8008
+    fi
+}) &
 BACKEND_PID=$!
 
 # フロントエンド開発サーバーの起動（Vite）
