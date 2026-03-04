@@ -1,0 +1,17 @@
+{
+    "name": "Excalidraw myao9494",
+    "short_name": "Excalidraw",
+    "description": "ローカルファイル対応のExcalidrawエディタ",
+    "start_url": "/",
+    "display": "standalone",
+    "background_color": "#ffffff",
+    "theme_color": "#6965db",
+    "orientation": "any",
+    "icons": [
+        {
+            "src": "/favicon.ico",
+            "sizes": "48x48",
+            "type": "image/x-icon"
+        }
+    ]
+}

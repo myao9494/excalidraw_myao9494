@@ -43,6 +43,7 @@ import {
   openFileViaBackend,
   archiveFile, // Added import
   isObsidianPath,
+  API_BASE_URL,
   type ExcalidrawFileData,
   type LoadFileError
 } from "../utils/fileUtils";
@@ -264,7 +265,7 @@ const openInFileExplorer = async (currentFolder: string | null) => {
 
           // Fallback: internal backend /api/open-folder
           const currentHost = window.location.hostname || "localhost";
-          fetch(`http://${currentHost}:8008/api/open-folder`, {
+          fetch(`${API_BASE_URL}/api/open-folder`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ path: folderPath })
@@ -378,7 +379,7 @@ export default function ExampleApp({
 
     try {
       const currentHost = window.location.hostname || "localhost";
-      const response = await fetch(`http://${currentHost}:8008/api/list-directory`, {
+      const response = await fetch(`${API_BASE_URL}/api/list-directory`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -446,9 +447,8 @@ export default function ExampleApp({
 
   const openFileFromBrowser = useCallback((rawPath: string) => {
     const normalizedPath = normalizePath(rawPath);
-    const currentHost = window.location.hostname || "localhost";
     const encodedPath = encodeURIComponent(normalizedPath);
-    const targetUrl = `http://${currentHost}:3001/?filepath=${encodedPath}`;
+    const targetUrl = `${window.location.origin}/?filepath=${encodedPath}`;
     window.open(targetUrl, '_blank', 'noopener');
     closeFileBrowser();
   }, [closeFileBrowser]);
@@ -1556,7 +1556,7 @@ export default function ExampleApp({
         libraryItems
       };
 
-      const response = await fetch(`http://${window.location.hostname}:8008/save-library`, {
+      const response = await fetch(`${API_BASE_URL}/save-library`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

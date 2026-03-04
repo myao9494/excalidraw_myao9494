@@ -777,6 +777,10 @@ def sanitize_filename(filename: str) -> str:
 
 @app.get("/")
 async def root():
+    # dist/index.html が存在する場合はフロントエンドを配信（PWA対応）
+    dist_index = Path(__file__).parent.parent / "dist" / "index.html"
+    if dist_index.exists():
+        return FileResponse(str(dist_index), media_type="text/html")
     return {"message": "Excalidraw File API"}
 
 @app.get("/api/load-file")
@@ -1803,3 +1807,12 @@ async def archive_file(request: ArchiveFileRequest):
             error=str(e)
         )
 
+
+# ========================================
+# フロントエンド静的ファイル配信（PWA対応）
+# ========================================
+# dist/ディレクトリが存在する場合、ビルド済みフロントエンドを配信する
+# APIルートの後にマウントすることで、/api/* は通常通り処理される
+dist_path = Path(__file__).parent.parent / "dist"
+if dist_path.exists():
+    app.mount("/", StaticFiles(directory=str(dist_path), html=True), name="frontend")

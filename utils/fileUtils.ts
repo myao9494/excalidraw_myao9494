@@ -82,11 +82,14 @@ export const getFilePathFromUrl = (): string | null => {
 };
 
 const getApiBaseUrl = (): string => {
-  // 現在のホストを取得し、バックエンドポート(8008)を使用
-  const currentHost = window.location.hostname;
-  const baseUrl = `http://${currentHost}:8008`;
-  // console.log(`[DEBUG] API Base URL: ${API_BASE_URL} (hostname: ${window.location.hostname})`);
-  return baseUrl;
+  // @ts-ignore
+  if (import.meta.env?.DEV) {
+    const currentHost = window.location.hostname;
+    // 開発環境（Vite port 3001等）はバックエンドポート(8008)を指定
+    return `http://${currentHost}:8008`;
+  }
+  // 本番環境（ビルド後）はバックエンドから同一オリジンで配信されているため相対パス
+  return '';
 };
 
 export const API_BASE_URL = getApiBaseUrl();

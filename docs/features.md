@@ -805,3 +805,46 @@ async def open_url(url: str):
 - フロントエンドからObsidianアプリを直接起動可能
 - Vault内のファイルをネイティブObsidianエディタで開ける
 - クロスプラットフォーム対応により、どのOSでも動作
+
+## 9. PWA対応（Progressive Web App）
+
+### 9.1 バックエンドからのフロントエンド配信
+
+**機能概要**
+- FastAPIバックエンド(port 8008)からビルド済みフロントエンド(`dist/`)を配信
+- 1つのサーバーでAPI＋フロントエンドを統合配信
+
+**構成**
+- `manifest.json`: PWAマニフェスト（アプリ名、テーマカラー、表示モード）
+- `sw.js`: Service Worker（オフライン対応）
+- `index.html`: PWA関連メタタグ＋Service Worker登録スクリプト
+
+**キャッシュ戦略**
+- 静的アセット（JS, CSS, フォント）: キャッシュファースト
+- APIリクエスト(`/api/*`): ネットワークファースト
+- HTMLページ: ネットワークファースト（フォールバックでキャッシュ）
+
+**API_BASE_URL の動的解決**
+```typescript
+// バックエンド配信時（port 8008）: 相対パス（空文字列）
+// 開発時（Vite port 3001）: http://{hostname}:8008
+const getApiBaseUrl = (): string => {
+  const currentPort = window.location.port;
+  if (currentPort === '8008' || currentPort === '') {
+    return '';
+  }
+  return `http://${window.location.hostname}:8008`;
+};
+```
+
+### 9.2 起動方法
+
+**本番環境**
+```bash
+./start_servers.sh  # バックエンドのみ (port 8008)
+```
+
+**開発環境**
+```bash
+./start_dev.sh  # Vite (port 3001) + バックエンド (port 8008)
+```

@@ -14,3 +14,19 @@
 - **Obsidian互換性**:
   - `.excalidraw.md` ファイルの場合、Markdown内のJSONブロックを抽出して返す。
   - 画像などの埋め込みファイルも解決して `files` プロパティに含める。
+
+## PWA配信仕様
+
+### バックエンドからのフロントエンド配信
+- バックエンド(FastAPI, port 8008)が `dist/` ディレクトリの静的ファイルを配信
+- APIルート（`/api/*`）が優先され、その他のリクエストは静的ファイルを返す
+- ルート(`/`)は`dist/index.html`を返す（SPAフォールバック）
+
+### PWA構成
+- `manifest.json`: アプリ名、テーマカラー、表示モード等を定義
+- `sw.js`: Service Worker（キャッシュファースト/ネットワークファースト戦略）
+- `API_BASE_URL`: 同一オリジン配信時は相対パス、開発時は`http://{host}:8008`
+
+### 起動方法
+- **本番**: `./start_servers.sh` (バックエンドのみ、port 8008)
+- **開発**: `./start_dev.sh` (Vite port 3001 + バックエンド port 8008)
