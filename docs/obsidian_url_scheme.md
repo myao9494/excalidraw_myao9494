@@ -50,7 +50,7 @@ async function openInObsidian(vaultName: string, filePath: string) {
 
   try {
     const response = await fetch(
-      `http://localhost:8008/api/open-url?url=${encodedUrl}`
+      `http://localhost:3001/api/open-url?url=${encodedUrl}`
     );
 
     if (response.ok) {
@@ -72,10 +72,10 @@ openInObsidian('obsidian_test', 'あらrh.excalidraw');
 
 ```bash
 # 基本的な使用例
-curl "http://localhost:8008/api/open-url?url=obsidian%3A%2F%2Fopen%3Fvault%3Dobsidian_test%26file%3Dtest.excalidraw"
+curl "http://localhost:3001/api/open-url?url=obsidian%3A%2F%2Fopen%3Fvault%3Dobsidian_test%26file%3Dtest.excalidraw"
 
 # 日本語ファイル名の例
-curl "http://localhost:8008/api/open-url?url=$(python3 -c 'import urllib.parse; print(urllib.parse.quote_plus("obsidian://open?vault=obsidian_test&file=あらrh.excalidraw"))')"
+curl "http://localhost:3001/api/open-url?url=$(python3 -c 'import urllib.parse; print(urllib.parse.quote_plus("obsidian://open?vault=obsidian_test&file=あらrh.excalidraw"))')"
 ```
 
 ### Pythonスクリプト
@@ -94,7 +94,7 @@ def open_in_obsidian(vault_name: str, file_path: str):
 
     # APIリクエスト
     response = requests.get(
-        f"http://localhost:8008/api/open-url?url={encoded_url}"
+        f"http://localhost:3001/api/open-url?url={encoded_url}"
     )
 
     if response.ok:

@@ -1,5 +1,6 @@
 import type { NonDeletedExcalidrawElement } from "@excalidraw/excalidraw/element/types";
 import { createStickyNoteElements, createStickyNoteElementsWithFullPath } from "./dragDropUtils";
+import { API_BASE_URL } from "./fileUtils";
 
 export interface EmailData {
   subject: string;
@@ -60,7 +61,7 @@ export const saveOutlookEmail = async (
   currentPath: string
 ): Promise<EmailSaveResponse> => {
   try {
-    const response = await fetch(`http://${window.location.hostname}:8008/api/save-email`, {
+    const response = await fetch(`${API_BASE_URL}/api/save-email`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -100,7 +101,7 @@ export const uploadEmailFile = async (
     formData.append('current_path', currentPath);
     formData.append('file_type', 'email');
 
-    const response = await fetch(`http://${window.location.hostname}:8008/api/upload-files`, {
+    const response = await fetch(`${API_BASE_URL}/api/upload-files`, {
       method: 'POST',
       body: formData
     });

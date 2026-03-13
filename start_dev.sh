@@ -22,16 +22,15 @@ free_port() {
 }
 
 # 使用ポートの事前解放
-free_port 8008
-free_port 3001 # Viteの設定ファイルに合わせる
+free_port 3001
 
-# バックエンドサーバーの起動（port 8008）
-echo "バックエンドサーバーを起動中... (port 8008)"
+# バックエンドサーバーの起動（port 3001）
+echo "バックエンドサーバーを起動中... (port 3001)"
 (cd backend && {
     if [ -d "venv" ]; then
-        ./venv/bin/python -m uvicorn main:app --reload --host 0.0.0.0 --port 8008
+        ./venv/bin/python -m uvicorn main:app --reload --host 0.0.0.0 --port 3001
     else
-        python -m uvicorn main:app --reload --host 0.0.0.0 --port 8008
+        python -m uvicorn main:app --reload --host 0.0.0.0 --port 3001
     fi
 }) &
 BACKEND_PID=$!
@@ -58,9 +57,9 @@ echo ""
 echo "=== 開発用サーバー起動完了 ==="
 echo "フロントエンド (Vite): http://localhost:3001"
 echo "(もしポートが使用中の場合、Viteが自動的に別のポートで起動します)"
-echo "バックエンド API:    http://localhost:8008"
+echo "バックエンド API:    http://localhost:3001"
 echo ""
-echo "ソースコードを変更すると、ブラウザは自動的に更新されます。"
+echo "※ 開発時はViteとバックエンドが同じポート3001で動作します。"
 echo "停止するには Ctrl+C を押してください"
 
 # バックグラウンドプロセスの完了を待機

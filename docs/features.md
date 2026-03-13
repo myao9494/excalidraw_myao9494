@@ -782,7 +782,7 @@ GET /api/open-url?url=<URLエンコードされたURL>
 // ObsidianでファイルをVault内で開く
 const obsidianUrl = "obsidian://open?vault=obsidian_test&file=あらrh.excalidraw";
 const encodedUrl = encodeURIComponent(obsidianUrl);
-await fetch(`http://localhost:8008/api/open-url?url=${encodedUrl}`);
+await fetch(`http://localhost:3001/api/open-url?url=${encodedUrl}`);
 ```
 
 **動作詳細**
@@ -811,7 +811,7 @@ async def open_url(url: str):
 ### 9.1 バックエンドからのフロントエンド配信
 
 **機能概要**
-- FastAPIバックエンド(port 8008)からビルド済みフロントエンド(`dist/`)を配信
+- FastAPIバックエンド(port 3001)からビルド済みフロントエンド(`dist/`)を配信
 - 1つのサーバーでAPI＋フロントエンドを統合配信
 
 **構成**
@@ -826,14 +826,14 @@ async def open_url(url: str):
 
 **API_BASE_URL の動的解決**
 ```typescript
-// バックエンド配信時（port 8008）: 相対パス（空文字列）
-// 開発時（Vite port 3001）: http://{hostname}:8008
+// バックエンド配信時（port 3001）: 相対パス（空文字列）
+// 開発時（Vite port 3001）: http://{hostname}:3001
 const getApiBaseUrl = (): string => {
   const currentPort = window.location.port;
-  if (currentPort === '8008' || currentPort === '') {
+  if (currentPort === '3001' || currentPort === '') {
     return '';
   }
-  return `http://${window.location.hostname}:8008`;
+  return `http://${window.location.hostname}:3001`;
 };
 ```
 
@@ -841,10 +841,10 @@ const getApiBaseUrl = (): string => {
 
 **本番環境**
 ```bash
-./start_servers.sh  # バックエンドのみ (port 8008)
+./start_servers.sh  # バックエンドのみ (port 3001)
 ```
 
 **開発環境**
 ```bash
-./start_dev.sh  # Vite (port 3001) + バックエンド (port 8008)
+./start_dev.sh  # Vite (port 3001) + バックエンド (port 3001)
 ```

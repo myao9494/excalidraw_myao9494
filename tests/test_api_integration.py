@@ -10,7 +10,7 @@ import requests
 from pathlib import Path
 
 # テスト用の設定
-API_BASE_URL = "http://localhost:8008"
+API_BASE_URL = "http://localhost:3001"
 TEST_FILE_PATH = str(Path(__file__).parent / "obsidian_test" / "test.excalidraw.md")
 
 

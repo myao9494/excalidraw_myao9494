@@ -1,4 +1,5 @@
 import type { NonDeletedExcalidrawElement } from "@excalidraw/excalidraw/element/types";
+import { API_BASE_URL } from "./fileUtils";
 
 export interface DropCoordinates {
   x: number;
@@ -78,10 +79,10 @@ export const convertToWebURL = (filePath: string): string => {
   
   if (uploadsIndex !== -1) {
     const relativePath = filePath.substring(uploadsIndex);
-    return `http://${window.location.hostname}:8008/api/file/${relativePath}`;
+    return `${API_BASE_URL}/api/file/${relativePath}`;
   } else if (uploadLocalIndex !== -1) {
     const relativePath = filePath.substring(uploadLocalIndex);
-    return `http://${window.location.hostname}:8008/api/file/${relativePath}`;
+    return `${API_BASE_URL}/api/file/${relativePath}`;
   } else {
     return filePath; // uploads/upload_local が含まれていない場合はそのまま返す
   }
