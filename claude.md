@@ -28,5 +28,5 @@
 - `API_BASE_URL`: 同一オリジン配信時は相対パス、開発時は`http://{host}:3001`
 
 ### 起動方法
-- **本番**: `./start_servers.sh` (バックエンドのみ、port 3001)
-- **開発**: `./start_dev.sh` (Vite port 3001 + バックエンド port 3001)
+- **本番(デプロイ用)**: `./start_servers.sh` (変更反映漏れを防ぐため起動時に毎回フロントエンドをビルド、バックエンド port 3001)
+- **開発**: `./start_dev.sh` (Viteフロントエンド port 3001 + バックエンド port 3001)
