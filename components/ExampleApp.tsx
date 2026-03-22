@@ -59,6 +59,9 @@ const SAVE_DELAY_MS = 10000;
 
 let DEFAULT_TEMPLATE_DATA: ExcalidrawFileData | null = null;
 
+const createGeneratedId = (prefix: string, seed: string): string =>
+  `${prefix}-${seed}-${Math.random().toString(36).slice(2, 11)}`;
+
 try {
   DEFAULT_TEMPLATE_DATA = JSON.parse(defaultTemplateRaw) as ExcalidrawFileData;
 } catch (error) {
@@ -600,41 +603,53 @@ export default function ExampleApp({
 
   const buildElementSummary = useCallback(
     (elements: NonDeletedExcalidrawElement[], deletedCount: number = 0) => {
-      const activeElements = elements.filter((el) => !el.isDeleted);
+      const ids: string[] = [];
+      const geometry: string[] = [];
+      const texts: string[] = [];
+      const styles: string[] = [];
+      const extras: string[] = [];
+
+      for (const element of elements) {
+        if (element.isDeleted) {
+          continue;
+        }
+
+        ids.push(element.id);
+        geometry.push(
+          `${element.id}:${element.x.toFixed(2)},${element.y.toFixed(2)},${element.width.toFixed(2)},${element.height.toFixed(2)},${(element.angle || 0).toFixed(2)}`,
+        );
+        styles.push(
+          `${element.id}:${element.strokeColor},${element.backgroundColor},${element.fillStyle},${element.strokeWidth},${element.roughness},${element.opacity}`,
+        );
+
+        if (element.type === 'text') {
+          texts.push(`${element.id}:${element.text || ''}`);
+        }
+
+        const elementExtras: string[] = [];
+        if (element.type === 'arrow' && element.startArrowhead) {
+          elementExtras.push(`start:${element.startArrowhead}`);
+        }
+        if (element.type === 'arrow' && element.endArrowhead) {
+          elementExtras.push(`end:${element.endArrowhead}`);
+        }
+        if (element.link) {
+          elementExtras.push(`link:${element.link}`);
+        }
+        if (element.groupIds && element.groupIds.length > 0) {
+          elementExtras.push(`groups:${element.groupIds.join(',')}`);
+        }
+        extras.push(`${element.id}:${elementExtras.join(';')}`);
+      }
+
       const summary = {
-        count: activeElements.length,
+        count: ids.length,
         deletedCount,
-        ids: activeElements.map((el) => el.id).sort().join(','),
-        geometry: activeElements
-          .map(
-            (el) =>
-              `${el.id}:${el.x.toFixed(2)},${el.y.toFixed(2)},${el.width.toFixed(2)},${el.height.toFixed(2)},${(el.angle || 0).toFixed(2)}`,
-          )
-          .sort()
-          .join('|'),
-        texts: activeElements
-          .filter((el) => el.type === 'text')
-          .map((el) => `${el.id}:${el.text || ''}`)
-          .sort()
-          .join('|'),
-        styles: activeElements
-          .map(
-            (el) =>
-              `${el.id}:${el.strokeColor},${el.backgroundColor},${el.fillStyle},${el.strokeWidth},${el.roughness},${el.opacity}`,
-          )
-          .sort()
-          .join('|'),
-        extras: activeElements
-          .map((el) => {
-            const extras: string[] = [];
-            if (el.type === 'arrow' && el.startArrowhead) extras.push(`start:${el.startArrowhead}`);
-            if (el.type === 'arrow' && el.endArrowhead) extras.push(`end:${el.endArrowhead}`);
-            if (el.link) extras.push(`link:${el.link}`);
-            if (el.groupIds && el.groupIds.length > 0) extras.push(`groups:${el.groupIds.join(',')}`);
-            return `${el.id}:${extras.join(';')}`;
-          })
-          .sort()
-          .join('|'),
+        ids: ids.sort().join(','),
+        geometry: geometry.sort().join('|'),
+        texts: texts.sort().join('|'),
+        styles: styles.sort().join('|'),
+        extras: extras.sort().join('|'),
       };
       return JSON.stringify(summary);
     },
@@ -964,15 +979,16 @@ export default function ExampleApp({
           const libraryData = JSON.parse(libraryContent);
 
           if (libraryData.libraryItems) {
+            const librarySeed = `${Date.now()}`;
             // 各ライブラリアイテムと要素のIDを新しい一意のIDに更新
             const updatedLibraryItems = libraryData.libraryItems.map((item: any) => ({
               ...item,
-              id: `lib-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+              id: createGeneratedId('lib', librarySeed),
               elements: item.elements?.map((element: any) => ({
                 ...element,
-                id: `elem-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+                id: createGeneratedId('elem', librarySeed),
                 // グループIDも更新
-                groupIds: element.groupIds?.map(() => `group-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`)
+                groupIds: element.groupIds?.map(() => createGeneratedId('group', librarySeed))
               }))
             }));
 

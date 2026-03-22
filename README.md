@@ -23,6 +23,8 @@
 | `C` | 矢印なし直線 | 矢印ツールを選択し、矢印ヘッドを無効化した直線を描画 |
 | `N` | 基本付箋作成 | マウス位置に黄色の付箋を作成 |
 | `W` | クリップボード付箋 | クリップボードの内容からリンク付箋を作成 |
+| `Tab` | 図形変換 | 選択した矩形/ひし形/楕円を順番に切り替え |
+| `Cmd/Ctrl + S` | 手動保存 | 強制バックアップ付きで現在の内容を保存 |
 | `Cmd/Ctrl + M` | 最前面移動 | 選択した要素を最前面に移動 |
 | `Cmd/Ctrl + B` | 最背面移動 | 選択した要素を最背面に移動 |
 
@@ -84,7 +86,7 @@
 4. **Excalidraw API**: 公式APIを使用した安全な実装
 5. **ファイル操作**: FastAPIバックエンドを使用したローカルファイル操作
 6. **自動保存**: オブジェクト変更時の自動保存機能
-7. **バックアップ**: 自動バックアップ機能（5分間隔、最大10個保持）
+7. **バックアップ**: 自動バックアップ機能（10分間隔、2週間保持ポリシー付き）
 8. **ドラッグ&ドロップ**: 複数ファイル形式対応、座標変換、フルパスリンク機能
 
 ## インストール・実行方法
@@ -98,15 +100,16 @@ npm install
 ### 2. バックエンドサーバー起動
 
 ```bash
-cd backend
-pip install -r requirements.txt
-python -m uvicorn main:app --reload --host 0.0.0.0 --port 8000
+./start_dev.sh
 ```
 
 ### 3. フロントエンド開発サーバー起動
 
 ```bash
-npm start
+# start_dev.sh を使わない場合
+npm start                # Vite: http://localhost:3001
+cd backend
+python -m uvicorn main:app --reload --host 0.0.0.0 --port 8008
 ```
 
 ### Tailscale VPN対応
@@ -119,7 +122,7 @@ npm start
 2. **アクセス方法**: TailscaleのIPアドレス（例：`100.x.x.x`）を使用
    ```
    フロントエンド: http://100.x.x.x:3001
-   バックエンド: http://100.x.x.x:8000
+   バックエンド: http://100.x.x.x:8008
    ```
 3. **セキュリティ**: VPN内での全アクセス許可（allow_origins=["*"]）
 
@@ -129,7 +132,17 @@ npm start
 npm run build
 ```
 
-### 5. オフライン使用
+### 5. 本番相当の起動
+
+```bash
+./start_servers.sh
+```
+
+- フロントエンドを毎回ビルドしてから起動
+- バックエンドが `dist/` を配信
+- アプリケーションURL: `http://localhost:3001`
+
+### 6. オフライン使用
 
 ```bash
 # ビルド後の静的ファイルでオフライン実行
@@ -148,6 +161,8 @@ python -m http.server 8080
    - `C`: 直線描画モード
    - `N`: 付箋作成
    - `W`: クリップボード付箋作成
+   - `Tab`: 図形変換
+   - `Cmd/Ctrl + S`: 手動保存
    - `Cmd/Ctrl + M`: 最前面移動
    - `Cmd/Ctrl + B`: 最背面移動
 4. ドラッグ&ドロップ機能：
@@ -167,9 +182,10 @@ http://localhost:3001/?filepath=/path/to/your/file.excalidraw
 
 #### 機能詳細
 - **自動保存**: オブジェクトに変更があると自動的に保存
-- **外部編集対応**: VSCodeなどで外部編集された場合、5秒間隔で自動リロード
+- **外部編集対応**: 5秒間隔で更新を検知し、通常ファイルは読込/上書き保存を選択、`.excalidraw.md` は最新読込後に自動保存
 - **VSCode互換**: 標準のExcalidrawファイル形式で保存
-- **自動バックアップ**: 5分間隔でバックアップファイルを作成（最大10個保持）
+- **Obsidian互換**: `obsidian` を含むパスでは `.excalidraw.md` を優先し、必要に応じて初回変換
+- **自動バックアップ**: 通常ファイルのみ、10分間隔でバックアップを作成
 
 ### 付箋作成の詳細
 
@@ -183,6 +199,10 @@ http://localhost:3001/?filepath=/path/to/your/file.excalidraw
 - ファイルパスの場合、ファイル名を表示テキストとして使用
 - `.py`ファイルの場合、`cmd python`プレフィックスを追加
 - `.sh`/`.bat`ファイルの場合、`cmd`プレフィックスを追加
+
+#### Tabキー（図形変換）
+- 選択した `rectangle` / `diamond` / `ellipse` を順番に切り替え
+- 他の要素タイプは変更しない
 
 ### レイヤー操作
 
@@ -235,17 +255,18 @@ http://localhost:3001/?filepath=/path/to/your/file.excalidraw
 
 #### 自動バックアップの仕様
 - **保存場所**: 元ファイルと同じディレクトリの `backup/` フォルダ
-- **ファイル名**: `{元ファイル名}_backup_{00-09}.excalidraw`
-- **最大保存数**: 10個（古いものから順次上書き）
-- **保存条件**: 最新バックアップから5分以上経過した場合のみ作成
+- **ファイル名**: `{元ファイル名}_backup_YYYYMMDD_HHMMSS.ext`
+- **保存条件**: 通常保存時は最新バックアップから10分以上経過した場合のみ作成
+- **保持ポリシー**: 2週間より古いバックアップは削除し、当日以外は各日付の最新1件だけ保持
+- **Obsidian管理下**: `.excalidraw.md` 保存時はアプリ側バックアップを作成しない
 
 #### 動作例
 元ファイル: `/path/to/myfile.excalidraw`
 
 バックアップファイル:
-- `/path/to/backup/myfile_backup_00.excalidraw`
-- `/path/to/backup/myfile_backup_01.excalidraw`
-- `/path/to/backup/myfile_backup_02.excalidraw`
+- `/path/to/backup/myfile_backup_20260320_074500.excalidraw`
+- `/path/to/backup/myfile_backup_20260320_084501.excalidraw`
+- `/path/to/backup/myfile_backup_20260321_091002.excalidraw`
 - ...
 
 ## 今後の拡張予定

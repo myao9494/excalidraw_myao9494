@@ -15,6 +15,7 @@ import subprocess
 import hashlib
 import traceback
 import logging
+import base64
 from datetime import datetime, timedelta
 from typing import Dict, List, Any, Optional
 import re
@@ -775,6 +776,127 @@ def sanitize_filename(filename: str) -> str:
         filename = "untitled"
     return filename
 
+
+IMAGE_MIME_TYPE_MAP = {
+    "png": "image/png",
+    "jpg": "image/jpeg",
+    "jpeg": "image/jpeg",
+    "gif": "image/gif",
+    "svg": "image/svg+xml",
+    "webp": "image/webp",
+}
+
+
+def parse_embedded_files_section(content: str) -> Dict[str, str]:
+    """Obsidian markdown の Embedded Files セクションを解析する。"""
+    embedded_files: Dict[str, str] = {}
+    embedded_match = re.search(r"## Embedded Files\n(.*?)\n(?=##|%%|\Z)", content, re.DOTALL)
+    if not embedded_match:
+        return embedded_files
+
+    for line in embedded_match.group(1).splitlines():
+        if ":" not in line or "[[" not in line:
+            continue
+        file_id, _, remainder = line.partition(":")
+        filename_match = re.search(r"\[\[(.*?)\]\]", remainder)
+        if filename_match:
+            embedded_files[file_id.strip()] = filename_match.group(1)
+
+    return embedded_files
+
+
+def resolve_embedded_file_path(
+    file_path: Path,
+    image_filename: str,
+    vault_root: Optional[Path] = None,
+) -> Path:
+    """埋め込み画像の候補パスを順に探索する。"""
+    candidates = [file_path.parent / image_filename]
+
+    if vault_root is not None:
+        candidates.append(vault_root / image_filename)
+
+    candidates.append(file_path.parent.parent / image_filename)
+
+    for candidate in candidates:
+        if candidate.exists():
+            return candidate
+
+    return candidates[0]
+
+
+def build_data_url(image_path: Path, mime_type: Optional[str] = None) -> tuple[str, int]:
+    """画像ファイルから data URL を生成する。"""
+    resolved_mime_type = mime_type
+    if not resolved_mime_type:
+        ext = image_path.suffix.lower().lstrip(".")
+        resolved_mime_type = IMAGE_MIME_TYPE_MAP.get(ext, "image/png")
+
+    with open(image_path, "rb") as img_file:
+        image_bytes = img_file.read()
+
+    base64_data = base64.b64encode(image_bytes).decode("utf-8")
+    data_url = f"data:{resolved_mime_type};base64,{base64_data}"
+    created = int(image_path.stat().st_mtime * 1000)
+    return data_url, created
+
+
+def hydrate_obsidian_files(
+    file_path: Path,
+    data: Dict[str, Any],
+    embedded_files_map: Dict[str, str],
+) -> None:
+    """Embedded Files セクションと files セクションを突き合わせて dataURL を補完する。"""
+    vault_root = find_vault_root(file_path)
+    files = data.get("files")
+    if not isinstance(files, dict):
+        files = {}
+        data["files"] = files
+
+    for file_id, image_filename in embedded_files_map.items():
+        file_entry = files.get(file_id)
+        if isinstance(file_entry, dict) and file_entry.get("dataURL"):
+            continue
+
+        image_path = resolve_embedded_file_path(file_path, image_filename, vault_root)
+        if not image_path.exists():
+            print(f"Warning: Image file not found: {image_filename}")
+            continue
+
+        try:
+            data_url, created = build_data_url(image_path)
+            files[file_id] = {
+                **(file_entry if isinstance(file_entry, dict) else {}),
+                "mimeType": IMAGE_MIME_TYPE_MAP.get(image_path.suffix.lower().lstrip("."), "image/png"),
+                "id": file_id,
+                "dataURL": data_url,
+                "created": created,
+            }
+            print(f"Loaded image: {image_path}")
+        except Exception as e:
+            print(f"Warning: Failed to load image {image_filename}: {e}")
+
+    for file_id, file_data in list(files.items()):
+        if not isinstance(file_data, dict) or file_data.get("dataURL"):
+            continue
+
+        mime_type = file_data.get("mimeType", "image/png")
+        ext = mime_type.split("/")[-1] if "/" in mime_type else "png"
+        image_filename = embedded_files_map.get(file_id, f"{file_id[:8]}.{ext}")
+        image_path = resolve_embedded_file_path(file_path, image_filename, vault_root)
+
+        if not image_path.exists():
+            print(f"Warning: Image file not found: {image_filename}")
+            continue
+
+        try:
+            data_url, created = build_data_url(image_path, mime_type)
+            file_data["dataURL"] = data_url
+            file_data.setdefault("created", created)
+            print(f"Loaded image: {image_path}")
+        except Exception as e:
+            print(f"Warning: Failed to load image {image_filename}: {e}")
+
 @app.get("/")
 async def root():
     # dist/index.html が存在する場合はフロントエンドを配信（PWA対応）
@@ -811,21 +933,18 @@ async def load_file(filepath: str):
                     with open(file_path, "r", encoding="utf-8") as f:
                         content = f.read()
 
-                    # Embedded Filesセクションから画像ファイル名を読み取る
-                    embedded_files_map = {}  # file_id -> filename
-                    embedded_match = re.search(r'## Embedded Files\n(.*?)\n(?=##|%%)', content, re.DOTALL)
-                    if embedded_match:
-                        embedded_section = embedded_match.group(1)
-                        # file_id: [[filename]] の形式を解析
-                        for line in embedded_section.split('\n'):
-                            if ':' in line and '[[' in line:
-                                file_id = line.split(':')[0].strip()
-                                filename_match = re.search(r'\[\[(.*?)\]\]', line)
-                                if filename_match:
-                                    filename = filename_match.group(1)
-                                    embedded_files_map[file_id] = filename
+                    embedded_files_map = parse_embedded_files_section(content)
 
-                    json_str = extract_json_from_markdown(content)
+                    try:
+                        json_str = extract_json_from_markdown(content)
+                    except ValueError as e:
+                        raise HTTPException(
+                            status_code=400,
+                            detail={
+                                "error_type": "json_syntax",
+                                "message": str(e),
+                            },
+                        ) from e
 
                     # 詳細検証を実行
                     data, validation_error = validate_json_with_details(json_str)
@@ -835,114 +954,7 @@ async def load_file(filepath: str):
                             detail=validation_error.model_dump()
                         )
 
-                    # Embedded Filesセクションから画像を読み込んでfilesセクションに追加
-                    import base64
-                    files = data.get('files', {})
-                    if not files:
-                        files = {}
-                        data['files'] = files
-
-                    # Embedded Filesセクションの各画像を読み込む
-                    for file_id, image_filename in embedded_files_map.items():
-                        # 画像ファイルを探す
-                        # 1. 同じディレクトリ
-                        image_path = file_path.parent / image_filename
-                        if not image_path.exists():
-                            # 2. Vaultルートからの相対パスとして試行
-                            vault_root = find_vault_root(file_path)
-                            if vault_root:
-                                candidate = vault_root / image_filename
-                                if candidate.exists():
-                                    image_path = candidate
-                                else:
-                                    # 3. Attachmentsフォルダなどのパターンも考慮（必要に応じて）
-                                    # ここでは単純に親フォルダを遡って探す（簡易的なフォールバック）
-                                    try_parent = file_path.parent.parent / image_filename
-                                    if try_parent.exists():
-                                        image_path = try_parent
-                            else:
-                                # Vaultが見つからない場合は親ディレクトリも試す
-                                image_path = file_path.parent.parent / image_filename
-
-                        if image_path.exists():
-                            try:
-                                # 拡張子からmimeTypeを推測
-                                ext = image_path.suffix.lower().lstrip('.')
-                                mime_type = f"image/{ext}" if ext in ['png', 'jpg', 'jpeg', 'gif', 'svg', 'webp'] else 'image/png'
-
-                                with open(image_path, 'rb') as img_file:
-                                    image_bytes = img_file.read()
-
-                                # base64エンコード
-                                base64_data = base64.b64encode(image_bytes).decode('utf-8')
-
-                                # dataURLを生成
-                                data_url = f"data:{mime_type};base64,{base64_data}"
-
-                                # filesセクションに追加
-                                files[file_id] = {
-                                    'mimeType': mime_type,
-                                    'id': file_id,
-                                    'dataURL': data_url,
-                                    'created': int(image_path.stat().st_mtime * 1000)
-                                }
-
-                                print(f"Loaded image: {image_path}")
-                            except Exception as e:
-                                print(f"Warning: Failed to load image {image_filename}: {e}")
-                        else:
-                            print(f"Warning: Image file not found: {image_filename}")
-
-                    # JSONに既にfilesがある場合、dataURLを補完
-                    for file_id, file_data in list(files.items()):
-                            # dataURLが存在しない場合、外部ファイルから読み込む
-                            if 'dataURL' not in file_data:
-                                mime_type = file_data.get('mimeType', 'image/png')
-                                ext = mime_type.split('/')[-1] if '/' in mime_type else 'png'
-
-                                # Embedded Filesセクションからファイル名を取得、なければfile_idから生成
-                                if file_id in embedded_files_map:
-                                    image_filename = embedded_files_map[file_id]
-                                else:
-                                    image_filename = f"{file_id[:8]}.{ext}"
-
-                                if file_id in embedded_files_map:
-                                    image_filename = embedded_files_map[file_id]
-                                else:
-                                    image_filename = f"{file_id[:8]}.{ext}"
-
-                                # 画像ファイルを探す
-                                image_path = file_path.parent / image_filename
-                                if not image_path.exists():
-                                    # Vaultルートからの相対パスとして試行
-                                    vault_root = find_vault_root(file_path)
-                                    if vault_root:
-                                        candidate = vault_root / image_filename
-                                        if candidate.exists():
-                                            image_path = candidate
-                                    
-                                    if not image_path.exists():
-                                         # 親ディレクトリも探す
-                                        image_path = file_path.parent.parent / image_filename
-
-                                # 画像ファイルが存在する場合、読み込む
-                                if image_path.exists():
-                                    try:
-                                        with open(image_path, 'rb') as img_file:
-                                            image_bytes = img_file.read()
-
-                                        # base64エンコード
-                                        base64_data = base64.b64encode(image_bytes).decode('utf-8')
-
-                                        # dataURLを生成
-                                        data_url = f"data:{mime_type};base64,{base64_data}"
-                                        file_data['dataURL'] = data_url
-
-                                        print(f"Loaded image: {image_path}")
-                                    except Exception as e:
-                                        print(f"Warning: Failed to load image {image_filename}: {e}")
-                                else:
-                                    print(f"Warning: Image file not found: {image_filename}")
+                    hydrate_obsidian_files(file_path, data, embedded_files_map)
 
                     data_hash = compute_data_hash(data)
 
@@ -955,6 +967,8 @@ async def load_file(filepath: str):
                         "modified": file_modified,
                         "hash": data_hash,
                     }
+                except HTTPException:
+                    raise
                 except Exception as e:
                     print(f"Error loading Obsidian file: {e}")
                     raise HTTPException(status_code=500, detail=f"Error parsing Obsidian file: {str(e)}")
@@ -1229,6 +1243,8 @@ async def open_url(url: str):
             "url": decoded_url,
             "message": f"Opened URL with system handler"
         }
+    except HTTPException:
+        raise
     except Exception as e:
         print(f"Error opening URL: {e}")
         traceback.print_exc()
@@ -1322,17 +1338,8 @@ async def save_file(request: SaveFileRequest):
                 try:
                     with open(file_path, 'r', encoding='utf-8') as f:
                         original_md_content = f.read()
-                    
-                    # 既存のEmbedded Filesセクションを解析してマッピングを作成
-                    embedded_match = re.search(r'## Embedded Files\n(.*?)\n(?=##|\Z)', original_md_content, re.DOTALL)
-                    if embedded_match:
-                        for line in embedded_match.group(1).split('\n'):
-                            if ':' in line and '[[' in line:
-                                parts = line.split(':', 1)
-                                fid = parts[0].strip()
-                                link_match = re.search(r'\[\[(.*?)\]\]', parts[1])
-                                if link_match:
-                                    existing_embedded_files[fid] = link_match.group(1)
+
+                    existing_embedded_files = parse_embedded_files_section(original_md_content)
                 except Exception as e:
                     print(f"Warning: Failed to read existing obsidian file: {e}")
 

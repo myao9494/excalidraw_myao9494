@@ -15,3 +15,5 @@ personal/backup/
 test_obsidian/
 tests/
 backend/venv/
+.venv/
+.venv.broken/

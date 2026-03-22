@@ -99,7 +99,7 @@ axios.interceptors.response.use((res) => {
   "type": "python",
   "request": "launch",
   "program": "uvicorn",
-  "args": ["backend.main:app", "--reload", "--port", "8000"],
+  "args": ["backend.main:app", "--reload", "--port", "8008"],
   "jinja": true,
   "console": "integratedTerminal"
 }

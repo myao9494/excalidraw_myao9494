@@ -1,34 +1,38 @@
 @echo off
-chcp 65001
+chcp 65001 > nul
+setlocal
 
-REM サーバー一括起動スクリプト（Windows用 / オフライン環境対応）
-REM buildされたフロントエンドとバックエンドサーバーを同時に起動
-REM ポート3001使用、Python標準ライブラリのみ使用
+REM サーバー一括起動スクリプト（Windows用）
+REM バックエンドサーバー1つでAPI＋フロントエンド（PWA）を配信
 
-echo === Excalidraw サーバー群の起動を開始します ===
+echo === Excalidraw サーバーの起動を開始します ===
 
 REM プロジェクトディレクトリに移動
 cd /d %~dp0
+set "ROOT_DIR=%CD%"
 
-REM バックエンドサーバーの起動（port 8000）
-echo バックエンドサーバーを起動中... (port 8000)
-start "Backend Server" cmd /k "cd backend && python -m uvicorn main:app --reload --host 0.0.0.0 --port 8000"
+REM 変更の反映忘れを防ぐため、常にフロントエンドをビルドする
+echo フロントエンドのビルドを実行しています...
+call npm run build
+if errorlevel 1 (
+  echo ビルドに失敗しました。
+  exit /b 1
+)
 
-REM 少し待機
-timeout /t 3 /nobreak > nul
+REM 利用する Python を決定
+set "PYTHON_EXE=python"
+if exist "%ROOT_DIR%\backend\.venv\Scripts\python.exe" set "PYTHON_EXE=%ROOT_DIR%\backend\.venv\Scripts\python.exe"
+if exist "%ROOT_DIR%\.venv\Scripts\python.exe" set "PYTHON_EXE=%ROOT_DIR%\.venv\Scripts\python.exe"
 
-REM フロントエンドサーバーの起動（port 3001）- Python標準ライブラリのみ使用
-echo フロントエンドサーバーを起動中... (port 3001)
-start "Frontend Server" cmd /k "cd dist && python -m http.server 3001"
+echo サーバーを起動中... (port 3001)
+start "Excalidraw Server" cmd /k "cd /d backend && %PYTHON_EXE% -m uvicorn main:app --reload --host 0.0.0.0 --port 3001"
 
 echo.
 echo === サーバー起動完了 ===
-echo フロントエンド: http://localhost:3001
-echo バックエンド API: http://localhost:8000
+echo アプリケーション: http://localhost:3001
+echo バックエンド API: http://localhost:3001/api/
 echo.
-echo 各サーバーは別ウィンドウで起動されました
-echo 停止するには各ウィンドウを閉じてください
-echo.
-echo ※ オフライン環境対応: Python標準ライブラリのみ使用
+echo ※ PWA対応: バックエンドからフロントエンドを配信
+echo 停止するには起動したウィンドウを閉じてください
 echo.
 pause

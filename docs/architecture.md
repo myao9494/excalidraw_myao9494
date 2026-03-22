@@ -49,8 +49,8 @@ graph TB
     subgraph "ファイルシステム"
         R["元ファイル<br/>(.excalidraw)"]
         S["バックアップフォルダ<br/>(backup/)"]
-        T["バックアップファイル<br/>(*_backup_*.excalidraw)"]
-        U["アップロードフォルダ<br/>(upload_local/)"]
+        T["バックアップファイル<br/>(*_backup_YYYYMMDD_HHMMSS.*)"]
+        U["アップロードフォルダ<br/>(upload_local/ または uploads/)"]
         V["アップロードファイル<br/>(各種ファイル)"]
         
         R --> S
@@ -107,7 +107,7 @@ sequenceDiagram
     User->>App: 図形を編集
     App->>App: 変更検知
     App->>API: POST /api/save-file
-    API->>API: バックアップ作成判定
+    API->>API: バックアップ作成判定 (通常ファイルのみ)
     API->>FS: バックアップ作成
     API->>FS: 元ファイル保存
     FS-->>API: 保存完了
@@ -119,11 +119,8 @@ sequenceDiagram
     API->>FS: 更新日時確認
     FS-->>API: 更新日時
     API-->>App: 更新通知
-    App->>API: GET /api/load-file
-    API->>FS: 更新されたファイル読み込み
-    FS-->>API: 新しいファイルデータ
-    API-->>App: 新しいデータ
-    App->>App: 画面更新
+    App->>App: 通常ファイルは読込/上書き保存を選択
+    App->>App: .excalidraw.md は最新読込後に自動保存
     
     Note over User,VSCode: 4. キーボードショートカット
     User->>App: キー入力 (N, W, C, Ctrl+M, Ctrl+B)
@@ -134,7 +131,7 @@ sequenceDiagram
     User->>App: ファイルをドロップ
     App->>App: 座標変換・ファイル種別判定
     App->>API: POST /api/upload-files
-    API->>FS: ファイル保存 (upload_local/)
+    API->>FS: ファイル保存 (upload_local/ または uploads/)
     FS-->>API: 保存パス
     API-->>App: アップロード結果
     App->>App: フルパス付き付箋作成
@@ -264,8 +261,8 @@ graph TB
     
     subgraph "バックアップシステム"
         L["create_backup関数"]
-        M["5分間隔チェック"]
-        N["ローテーション管理"]
+        M["10分間隔チェック"]
+        N["2週間削除 + 日次最新保持"]
         O["バックアップファイル作成"]
         
         L --> M
@@ -277,7 +274,7 @@ graph TB
     subgraph "ファイルシステム"
         P["元ファイル"]
         Q["backup/フォルダ"]
-        R["*_backup_*.excalidraw"]
+        R["*_backup_YYYYMMDD_HHMMSS.*"]
         
         P --> Q
         Q --> R

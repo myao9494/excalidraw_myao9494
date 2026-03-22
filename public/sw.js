@@ -2,7 +2,7 @@
  * Service Worker: Excalidraw PWA用
  * キャッシュ戦略:
  *   - 静的アセット（JS, CSS, フォント）: キャッシュファースト
- *   - APIリクエスト: ネットワークファースト
+ *   - APIリクエスト: ネットワークのみ
  *   - HTMLページ: ネットワークファースト（フォールバックでキャッシュ）
  */
 
@@ -64,9 +64,9 @@ self.addEventListener('fetch', (event) => {
         return;
     }
 
-    // APIリクエスト: ネットワークファースト
+    // APIリクエスト: 毎回バックエンドへ到達させる
     if (API_PATTERN.test(url.pathname)) {
-        event.respondWith(networkFirst(request));
+        event.respondWith(networkOnly(request));
         return;
     }
 
@@ -120,6 +120,18 @@ async function networkFirst(request) {
         if (cachedResponse) {
             return cachedResponse;
         }
+        return new Response('オフラインです', { status: 503 });
+    }
+}
+
+/**
+ * ネットワークのみ戦略
+ * APIはOS連携やローカルファイルI/Oを含むため、キャッシュを介さず常にバックエンドへ送る
+ */
+async function networkOnly(request) {
+    try {
+        return await fetch(request);
+    } catch (error) {
         return new Response('オフラインです', { status: 503 });
     }
 }

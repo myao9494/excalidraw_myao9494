@@ -317,15 +317,8 @@ export const useDragAndDrop = ({
 
     const { items, files } = e.dataTransfer!;
 
-    console.log('Drop detected:', {
-      items: items.length,
-      files: files.length,
-      types: e.dataTransfer!.types
-    });
-
     // Outlookメールの検出と処理
     if (detectOutlookData(e.dataTransfer!) && files.length === 0) {
-      console.log('Outlook data detected, processing...');
       await handleOutlookEmail(e.dataTransfer!, coordinates);
       return;
     }
@@ -375,31 +368,17 @@ export const useDragAndDrop = ({
    * ドラッグ&ドロップイベントリスナーを設定
    */
   useEffect(() => {
-    // ドキュメントレベルでイベントをキャプチャ
+    // ドキュメントレベルで十分なので、重複リスナーは付与しない
     document.addEventListener('dragover', preventDefaultDragOver, true);
     document.addEventListener('dragleave', preventDefaultDragLeave, true);
     document.addEventListener('drop', handleDrop, true);
-
-    // コンテナレベルでもイベントをキャプチャ
-    const container = containerRef.current;
-    if (container) {
-      container.addEventListener('dragover', preventDefaultDragOver, true);
-      container.addEventListener('dragleave', preventDefaultDragLeave, true);
-      container.addEventListener('drop', handleDrop, true);
-    }
 
     return () => {
       document.removeEventListener('dragover', preventDefaultDragOver, true);
       document.removeEventListener('dragleave', preventDefaultDragLeave, true);
       document.removeEventListener('drop', handleDrop, true);
-
-      if (container) {
-        container.removeEventListener('dragover', preventDefaultDragOver, true);
-        container.removeEventListener('dragleave', preventDefaultDragLeave, true);
-        container.removeEventListener('drop', handleDrop, true);
-      }
     };
-  }, [handleDrop, containerRef]);
+  }, [handleDrop]);
 
   return {
     handleDrop,

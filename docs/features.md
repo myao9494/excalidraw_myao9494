@@ -143,14 +143,15 @@ const result = await response.json();
 
 **動作詳細**
 1. Excalidrawの`onChange`イベントを監視
-2. 要素の変更を検知（JSON文字列比較）
+2. 要素数・削除状態・座標・テキスト・スタイル・リンク等からサマリを生成して変更を検知
 3. ポインタの移動は保存対象外
-4. 変更があった場合のみ保存処理を実行
+4. 保存は10秒デバウンスし、実行直前に最新状態を再取得
+5. 変更があった場合のみ保存処理を実行
 
 **変更検知ロジック**
 ```typescript
-const currentElementsString = JSON.stringify(elements);
-const hasElementsChanged = currentElementsString !== lastSavedElements;
+const currentSummaryString = buildElementSummary(elements, deletedCount);
+const hasElementsChanged = currentSummaryString !== lastSavedElements;
 
 if (hasElementsChanged) {
   // 保存処理実行
@@ -174,13 +175,13 @@ if (hasElementsChanged) {
 
 #### ファイル更新監視
 **機能概要**
-- 5秒間隔で外部でのファイル更新を検知し、自動リロード
+- 5秒間隔で外部更新を検知する
 
 **動作詳細**
 1. 5秒間隔で`/api/file-info`エンドポイントを呼び出し
-2. ファイルの更新日時を取得
-3. 前回の更新日時と比較
-4. 更新があった場合はファイルを再読み込み
+2. 通常ファイルはハッシュ、`.excalidraw.md` は更新日時で比較
+3. 通常ファイルで更新があった場合は、最新を読み込むかバックアップ付きで上書きするかを選択
+4. `.excalidraw.md` で更新があった場合は、最新内容を読み込んだ上で自動保存
 5. Excalidrawのシーンを更新
 
 **監視ロジック**
@@ -203,57 +204,51 @@ const checkFileUpdates = async () => {
 
 ### 3.1 自動バックアップ
 
-#### 5分間隔制限
+#### 10分間隔制限
 **機能概要**
-- 最新バックアップから5分以上経過した場合のみバックアップを作成
+- 最新バックアップから10分以上経過した場合のみ自動バックアップを作成
 
 **動作詳細**
 1. ファイル保存時にバックアップ処理を実行
 2. 既存のバックアップファイルから最新のものを特定
 3. 最新バックアップの作成時刻を取得
 4. 現在時刻との差分を計算
-5. 5分（300秒）以上経過している場合のみバックアップを作成
+5. 10分（600秒）以上経過している場合のみバックアップを作成
 
 **時間チェックロジック**
 ```python
 current_time = time.time()
-if latest_backup_time > 0 and (current_time - latest_backup_time) < 300:
+if latest_backup_time > 0 and (current_time - latest_backup_time) < 600:
     print(f"Skip backup: Last backup was {int(current_time - latest_backup_time)} seconds ago")
     return True
 ```
 
 #### バックアップファイル管理
 **ファイル命名規則**
-- `{元ファイル名}_backup_{00-09}.excalidraw`
-- 例: `myfile_backup_00.excalidraw`
+- `{元ファイル名}_backup_YYYYMMDD_HHMMSS.ext`
+- 例: `myfile_backup_20260320_074500.excalidraw`
 
 **保存場所**
 - 元ファイルと同じディレクトリの`backup/`フォルダ
 
 ### 3.2 バックアップローテーション
 
-#### 10個上限管理
+#### 日次保持ポリシー
 **機能概要**
-- 最大10個のバックアップを保持し、古いものから上書き
+- バックアップを日単位で整理し、古いものを自動削除する
 
 **動作詳細**
-1. 既存のバックアップファイル（00-09）を調査
-2. 空いているスロットがあればそれを使用
-3. 全てのスロットが埋まっている場合は最古のものを特定
-4. 最古のバックアップファイルを上書き
+1. 2週間より古いバックアップを削除
+2. 当日以外のバックアップは日付ごとに最新1件だけ残す
+3. 当日のバックアップは時刻付きファイル名で複数保持する
+4. `force_backup=true` の手動保存では時間制限を無視して作成する
 
-**ローテーションロジック**
+**整理ロジック**
 ```python
-for i in range(10):
-    backup_path = backup_dir / f"{base_name}_backup_{i:02d}{extension}"
-    if backup_path.exists():
-        backup_time = backup_path.stat().st_mtime
-        if backup_time < oldest_time:
-            oldest_time = backup_time
-            next_index = i
-    else:
-        next_index = i
-        break
+two_weeks_ago = current_timestamp - (14 * 24 * 3600)
+for backup_file, backup_time in existing_backups:
+    if backup_time < two_weeks_ago:
+        backup_file.unlink()
 ```
 
 ## 4. ドラッグ&ドロップ機能
@@ -269,17 +264,12 @@ for i in range(10):
 **メールファイル**
 - 対応形式: .eml, .msg
 - 処理: 青色のメール付箋を作成
-- リンク: 現在のExcalidrawファイルからの相対パスを設定
+- リンク: 保存されたファイルのフルパスを設定
 
 **一般ファイル**
 - 対応形式: PDF, DOC, TXT, ZIP等
 - 処理: 黄色の付箋を作成
-- リンク: 現在のExcalidrawファイルからの相対パスを設定
-
-#### 相対パスリンク機能
-**機能概要**
-- ドロップしたファイルの付箋には、現在開いているExcalidrawファイルの位置を基準とした相対パスがリンクとして設定される
-- ファイルを移動しても、フォルダ構造が維持されていればリンクが有効
+- リンク: 保存されたファイルのフルパスを設定
 
 **技術実装**
 ```typescript
@@ -287,13 +277,13 @@ const elements = createStickyNoteElementsWithFullPath(
   coordinates.viewportX,
   coordinates.viewportY,
   file.name,
-  result.files[0].path  // 相対パス（例: uploads/files/document.pdf）
+  result.files[0].path  // フルパス（例: /path/to/uploads/files/document.pdf）
 );
 ```
 
 **付箋構造**
-- 矩形要素: 相対パスリンク
-- テキスト要素: 相対パスリンク
+- 矩形要素: フルパスリンク
+- テキスト要素: フルパスリンク
 - クリック動作: ローカルファイルシステムでファイルを開く
 
 ### 4.2 フォルダドロップ処理
@@ -314,7 +304,7 @@ const formData = new FormData();
 formData.append('folder_path', entry.fullPath);
 formData.append('current_path', filePath);
 
-const response = await fetch('http://localhost:8000/api/create-folder-shortcut', {
+const response = await fetch('http://${window.location.hostname}:8008/api/create-folder-shortcut', {
   method: 'POST',
   body: formData
 });
@@ -730,8 +720,9 @@ document.addEventListener('drop', handleDrop, true);
 - **圧縮対応**: JSONデータは `lz-string` アルゴリズムで圧縮して保存し、プラグイン設定に関わらず読み込み可能（圧縮・非圧縮自動判別）。
 
 ### 8.2 自動移行
-- **保存時の移行**: `obsidian` フォルダ内で `.excalidraw` として保存しようとすると、自動的に `.excalidraw.md` に変換して保存。
-- **読み込み時の優先順**: `.excalidraw` ファイルを開こうとした際、同名の `.excalidraw.md` が存在すればそちらを優先して読み込む。
+- **読み込み時の優先順**: `obsidian` フォルダ内の `.excalidraw` を開く際、同名の `.excalidraw.md` が存在すればそちらを優先して読み込む。
+- **初回変換**: フロントエンドで `obsidian` フォルダ内の `.excalidraw` を開いた場合、同名の `.excalidraw.md` がなければ `.md` を新規保存し、元ファイルを `backup/` にアーカイブして以後は `.excalidraw.md` を使う。
+- **バックエンド単体の保存API**: 指定された拡張子をそのまま尊重し、保存時にパス自体は自動変更しない。
 
 ### 8.3 バックアップ除外
 - Obsidian 管理下のファイルについては、アプリ独自のバックアップシステム（`backup/` フォルダ作成）を無効化し、Obsidian 側のバージョン管理等に委ねる。
@@ -756,7 +747,7 @@ document.addEventListener('drop', handleDrop, true);
 
 #### 読み込み時の処理
 1. `## Embedded Files`セクションから画像ファイル名を読み取る
-2. 外部画像ファイルを検索（同じディレクトリまたは親ディレクトリ）
+2. 外部画像ファイルを検索（同じディレクトリ、Vaultルート、親ディレクトリ）
 3. `files`セクションに画像情報を復元
 4. Base64エンコードしてdataURLとして埋め込む
 5. フロントエンドには従来通りdataURLを返す
@@ -811,7 +802,7 @@ async def open_url(url: str):
 ### 9.1 バックエンドからのフロントエンド配信
 
 **機能概要**
-- FastAPIバックエンド(port 8008)からビルド済みフロントエンド(`dist/`)を配信
+- FastAPIバックエンド(port 3001)からビルド済みフロントエンド(`dist/`)を配信
 - 1つのサーバーでAPI＋フロントエンドを統合配信
 
 **構成**
@@ -826,14 +817,13 @@ async def open_url(url: str):
 
 **API_BASE_URL の動的解決**
 ```typescript
-// バックエンド配信時（port 8008）: 相対パス（空文字列）
+// バックエンド配信時（port 3001）: 相対パス（空文字列）
 // 開発時（Vite port 3001）: http://{hostname}:8008
 const getApiBaseUrl = (): string => {
-  const currentPort = window.location.port;
-  if (currentPort === '8008' || currentPort === '') {
-    return '';
+  if (import.meta.env?.DEV) {
+    return `http://${window.location.hostname}:8008`;
   }
-  return `http://${window.location.hostname}:8008`;
+  return '';
 };
 ```
 
@@ -841,7 +831,7 @@ const getApiBaseUrl = (): string => {
 
 **本番環境**
 ```bash
-./start_servers.sh  # バックエンドのみ (port 8008)
+./start_servers.sh  # dist を配信する単一サーバー (port 3001)
 ```
 
 **開発環境**

@@ -9,7 +9,10 @@ Obsidian互換機能のテスト
 """
 import sys
 import json
+import asyncio
 from pathlib import Path
+from tempfile import TemporaryDirectory
+from fastapi import HTTPException
 
 # プロジェクトルートをパスに追加
 sys.path.insert(0, str(Path(__file__).parent.parent))
@@ -18,6 +21,8 @@ from backend.main import (
     is_obsidian_path,
     extract_json_from_markdown,
     embed_json_into_markdown,
+    load_file,
+    open_url,
 )
 from lzstring import LZString
 
@@ -130,6 +135,52 @@ excalidraw-plugin: parsed
     print("  ✓ Compressed JSON extraction passed")
 
     print("✅ extract_json_from_markdown test passed")
+
+
+def test_load_obsidian_file_returns_400_for_invalid_json():
+    """Obsidian markdown 内の不正 JSON は 500 ではなく 400 を返す。"""
+    print("\nTesting invalid Obsidian JSON handling...")
+
+    with TemporaryDirectory() as tmp_dir:
+        vault_root = Path(tmp_dir) / "obsidian-vault"
+        (vault_root / ".obsidian").mkdir(parents=True)
+        target_file = vault_root / "broken.excalidraw.md"
+        target_file.write_text(
+            """---
+tags: [excalidraw]
+excalidraw-plugin: parsed
+---
+
+# Excalidraw Data
+
+## Drawing
+```json
+{"type":"excalidraw","elements":[}
+```
+""",
+            encoding="utf-8",
+        )
+
+        try:
+            asyncio.run(load_file(str(target_file)))
+            raise AssertionError("Expected HTTPException to be raised")
+        except HTTPException as exc:
+            assert exc.status_code == 400
+
+    print("✅ Invalid Obsidian JSON returns 400")
+
+
+def test_open_url_returns_400_for_invalid_format():
+    """不正なURLは 500 ではなく 400 を返す。"""
+    print("\nTesting invalid open-url handling...")
+
+    try:
+        asyncio.run(open_url("not-a-valid-url"))
+        raise AssertionError("Expected HTTPException to be raised")
+    except HTTPException as exc:
+        assert exc.status_code == 400
+
+    print("✅ Invalid open-url returns 400")
 
 
 def test_embed_json_into_markdown():
