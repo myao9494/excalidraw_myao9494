@@ -6,7 +6,7 @@
  *   - HTMLページ: ネットワークファースト（フォールバックでキャッシュ）
  */
 
-const CACHE_NAME = 'excalidraw-pwa-v1';
+const CACHE_NAME = 'excalidraw-pwa-v2';
 
 // プリキャッシュ対象のURL（インストール時にキャッシュ）
 const PRECACHE_URLS = [

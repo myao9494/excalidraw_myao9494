@@ -1,6 +1,7 @@
 import { useEffect, useCallback } from 'react';
 import type { ExcalidrawImperativeAPI } from '@excalidraw/excalidraw/types';
 import type { NonDeletedExcalidrawElement } from '@excalidraw/excalidraw/element/types';
+import { API_BASE_URL } from '../utils/fileUtils';
 
 import {
   convertToSceneCoordinates,
@@ -107,7 +108,7 @@ export const useDragAndDrop = ({
       formData.append('files', file);
       formData.append('current_path', filePath);
 
-      const response = await fetch(`http://${window.location.hostname}:8008/api/upload-files`, {
+      const response = await fetch(`${API_BASE_URL}/api/upload-files`, {
         method: 'POST',
         body: formData
       });
@@ -207,7 +208,7 @@ export const useDragAndDrop = ({
       formData.append('folder_path', entry.fullPath);
       formData.append('current_path', filePath);
 
-      const response = await fetch(`http://${window.location.hostname}:8008/api/create-folder-shortcut`, {
+      const response = await fetch(`${API_BASE_URL}/api/create-folder-shortcut`, {
         method: 'POST',
         body: formData
       });

@@ -773,7 +773,7 @@ GET /api/open-url?url=<URLエンコードされたURL>
 // ObsidianでファイルをVault内で開く
 const obsidianUrl = "obsidian://open?vault=obsidian_test&file=あらrh.excalidraw";
 const encodedUrl = encodeURIComponent(obsidianUrl);
-await fetch(`http://localhost:8008/api/open-url?url=${encodedUrl}`);
+await fetch(`http://localhost:3001/api/open-url?url=${encodedUrl}`);
 ```
 
 **動作詳細**
@@ -818,12 +818,22 @@ async def open_url(url: str):
 **API_BASE_URL の動的解決**
 ```typescript
 // バックエンド配信時（port 3001）: 相対パス（空文字列）
+<<<<<<< HEAD
 // 開発時（Vite port 3001）: http://{hostname}:8008
 const getApiBaseUrl = (): string => {
   if (import.meta.env?.DEV) {
     return `http://${window.location.hostname}:8008`;
   }
   return '';
+=======
+// 開発時（Vite port 3001）: http://{hostname}:3001
+const getApiBaseUrl = (): string => {
+  const currentPort = window.location.port;
+  if (currentPort === '3001' || currentPort === '') {
+    return '';
+  }
+  return `http://${window.location.hostname}:3001`;
+>>>>>>> origin/main
 };
 ```
 
@@ -831,10 +841,19 @@ const getApiBaseUrl = (): string => {
 
 **本番環境**
 ```bash
+<<<<<<< HEAD
 ./start_servers.sh  # dist を配信する単一サーバー (port 3001)
+=======
+./start_servers.sh  # バックエンドのみ (port 3001)
+>>>>>>> origin/main
 ```
 
 **開発環境**
 ```bash
+<<<<<<< HEAD
 ./start_dev.sh  # Vite (port 3001) + バックエンド (port 8008)
 ```
+=======
+./start_dev.sh  # Vite (port 3001) + バックエンド (port 3001)
+```
+>>>>>>> origin/main

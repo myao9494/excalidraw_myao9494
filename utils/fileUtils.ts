@@ -85,8 +85,8 @@ const getApiBaseUrl = (): string => {
   // @ts-ignore
   if (import.meta.env?.DEV) {
     const currentHost = window.location.hostname;
-    // 開発環境（Vite port 3001等）はバックエンドポート(8008)を指定
-    return `http://${currentHost}:8008`;
+    // 開発環境（Vite port 3001）もバックエンドポート(3001)を指定
+    return `http://${currentHost}:3001`;
   }
   // 本番環境（ビルド後）はバックエンドから同一オリジンで配信されているため相対パス
   return '';
@@ -202,7 +202,7 @@ export const runCommandViaBackend = async (
 };
 
 /**
- * 従来のバックエンド（port 8008等）を経由してファイルを開く
+ * 従来のバックエンド（port 3001等）を経由してファイルを開く
  * localhost:8001 が使えない場合のフォールバック用
  */
 export const openFileViaBackend = async (filePath: string): Promise<BackendOpenFileResponse> => {
