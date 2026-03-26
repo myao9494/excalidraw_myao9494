@@ -6,7 +6,7 @@
  *   - HTMLページ: ネットワークファースト（フォールバックでキャッシュ）
  */
 
-const CACHE_NAME = 'excalidraw-pwa-v2';
+const CACHE_NAME = 'excalidraw-pwa-v3';
 
 // プリキャッシュ対象のURL（インストール時にキャッシュ）
 const PRECACHE_URLS = [
@@ -29,6 +29,7 @@ const STATIC_ASSET_PATTERNS = [
 
 // APIリクエストのパターン
 const API_PATTERN = /\/api\//;
+const LIBRARY_FILE_PATTERN = /\.excalidrawlib$/;
 
 // インストールイベント: プリキャッシュを実行
 self.addEventListener('install', (event) => {
@@ -66,6 +67,12 @@ self.addEventListener('fetch', (event) => {
 
     // APIリクエスト: 毎回バックエンドへ到達させる
     if (API_PATTERN.test(url.pathname)) {
+        event.respondWith(networkOnly(request));
+        return;
+    }
+
+    // ライブラリファイルは破損したレスポンスを再利用しないよう常にネットワークへ到達させる
+    if (LIBRARY_FILE_PATTERN.test(url.pathname)) {
         event.respondWith(networkOnly(request));
         return;
     }

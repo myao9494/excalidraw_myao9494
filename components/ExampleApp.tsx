@@ -129,6 +129,20 @@ const normalizePath = (path: string): string => {
   return path.replace(/\\/g, '/');
 };
 
+const parseLibraryContent = (libraryContent: string) => {
+  const trimmedContent = libraryContent.trim();
+  if (!trimmedContent) {
+    return { libraryItems: [] };
+  }
+
+  const parsed = JSON.parse(trimmedContent);
+  if (!parsed || typeof parsed !== "object") {
+    throw new Error("ライブラリデータがオブジェクトではありません");
+  }
+
+  return parsed;
+};
+
 
 interface DirectoryBrowserEntry {
   name: string;
@@ -973,12 +987,17 @@ export default function ExampleApp({
 
       // ライブラリファイルをロードしてlibraryItemsに追加
       try {
-        const response = await fetch('/excalidraw_lib/my_lib.excalidrawlib');
+        const response = await fetch('/excalidraw_lib/my_lib.excalidrawlib', {
+          cache: 'no-store',
+          headers: {
+            'Cache-Control': 'no-cache',
+          },
+        });
         if (response.ok) {
           const libraryContent = await response.text();
-          const libraryData = JSON.parse(libraryContent);
+          const libraryData = parseLibraryContent(libraryContent);
 
-          if (libraryData.libraryItems) {
+          if (Array.isArray(libraryData.libraryItems)) {
             const librarySeed = `${Date.now()}`;
             // 各ライブラリアイテムと要素のIDを新しい一意のIDに更新
             const updatedLibraryItems = libraryData.libraryItems.map((item: any) => ({
@@ -1549,13 +1568,18 @@ export default function ExampleApp({
 
     // 既存のライブラリファイルの内容を確認
     try {
-      const currentResponse = await fetch('/excalidraw_lib/my_lib.excalidrawlib');
+      const currentResponse = await fetch('/excalidraw_lib/my_lib.excalidrawlib', {
+        cache: 'no-store',
+        headers: {
+          'Cache-Control': 'no-cache',
+        },
+      });
       if (currentResponse.ok) {
         const currentContent = await currentResponse.text();
-        const currentData = JSON.parse(currentContent);
+        const currentData = parseLibraryContent(currentContent);
 
         // 現在のファイルにデータがあり、新しいデータが空の場合は保存しない
-        if (currentData.libraryItems && currentData.libraryItems.length > 0 && libraryItems.length === 0) {
+        if (Array.isArray(currentData.libraryItems) && currentData.libraryItems.length > 0 && libraryItems.length === 0) {
           console.warn('既存のライブラリデータを保護するため、空のデータでの上書きをスキップしました');
           return;
         }
