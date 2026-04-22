@@ -119,22 +119,24 @@ const normalizeFolderPath = (rawPath: string): string => {
  * @param timeoutMs タイムアウト（ミリ秒）
  */
 export const checkBackendAvailable = async (timeoutMs: number = 500): Promise<boolean> => {
-  try {
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
 
-    // 単純にルートへの接続確認を行う (mode: 'no-cors' でCORSエラーを無視して接続可否だけ見る)
-    await fetch('http://localhost:8001', {
-      method: 'HEAD',
+  try {
+    // localhost:8001 は HEAD / を返さない構成があるため、
+    // 応答可否の確認は GET /api/config で行う。
+    await fetch('http://localhost:8001/api/config', {
+      method: 'GET',
       mode: 'no-cors',
+      cache: 'no-store',
       signal: controller.signal,
     });
-
-    clearTimeout(timeoutId);
     return true;
   } catch (error) {
     // タイムアウトや接続拒否などの場合はfalse
     return false;
+  } finally {
+    clearTimeout(timeoutId);
   }
 };
 
