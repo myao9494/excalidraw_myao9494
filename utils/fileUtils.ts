@@ -711,24 +711,28 @@ export const handleStickyNoteLink = async (linkUrl: string, currentFolder?: stri
       return;
     }
 
-    // 相対パスの場合は絶対パスに変換
-    if (isRelativePath(trimmedLink) && currentFolder) {
-      const absolutePath = resolveRelativePath(trimmedLink, currentFolder);
-      console.log(`[Link] Resolved relative path: ${trimmedLink} -> ${absolutePath}`);
-      trimmedLink = absolutePath;
+    const isRelativeFilePath = isRelativePath(trimmedLink);
+    const targetPath = isRelativeFilePath && currentFolder
+      ? resolveRelativePath(trimmedLink, currentFolder)
+      : trimmedLink;
+
+    if (isRelativeFilePath && currentFolder) {
+      console.log(`[Link] Resolved relative path: ${trimmedLink} -> ${targetPath}`);
+    } else {
+      console.log(`[Link] Using absolute path directly: ${targetPath}`);
     }
 
     // ファイルパスの場合
-    if (isExcalidrawFile(trimmedLink)) {
+    if (isExcalidrawFile(targetPath)) {
       // Excalidrawファイルの場合は現在のアプリで開く
       const currentUrl = new URL(window.location.href);
-      currentUrl.searchParams.set('filepath', trimmedLink);
+      currentUrl.searchParams.set('filepath', targetPath);
       window.open(currentUrl.toString(), '_blank', 'noopener');
     } else {
       // Excalidraw以外のファイルはlocalhost:8001のAPI経由で開く
       // http://localhost:8001/api/open-path?path={ファイルフルパス または フォルダフルパス}
       try {
-        const encodedPath = encodeURIComponent(trimmedLink);
+        const encodedPath = encodeURIComponent(targetPath);
         const openUrl = `http://localhost:8001/api/open-path?path=${encodedPath}`;
 
         // ポップアップブロッカー回避のため、先にウィンドウを開く
@@ -744,13 +748,13 @@ export const handleStickyNoteLink = async (linkUrl: string, currentFolder?: stri
               console.warn('Backend (localhost:8001) is down. Fallback to internal backend.');
 
               // New fallback: internal backend call
-              openFileViaBackend(trimmedLink).then(() => {
+              openFileViaBackend(targetPath).then(() => {
                 // Success - close the blank window as system handler took over
                 newWindow.close();
               }).catch(err => {
                 console.error('Fallback to internal backend also failed:', err);
                 // Final fallback: try to open raw link in the window
-                newWindow.location.href = trimmedLink;
+                newWindow.location.href = targetPath;
               });
             }
           });

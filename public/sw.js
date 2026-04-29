@@ -6,25 +6,19 @@
  *   - HTMLページ: ネットワークファースト（フォールバックでキャッシュ）
  */
 
-const CACHE_NAME = 'excalidraw-pwa-v3';
+const CACHE_NAME = 'excalidraw-pwa-v4';
+const APP_SHELL_CACHE = 'excalidraw-shell-v4';
 
 // プリキャッシュ対象のURL（インストール時にキャッシュ）
 const PRECACHE_URLS = [
-    '/',
+    '/manifest.json',
 ];
 
 // キャッシュ対象の静的アセットパターン
 const STATIC_ASSET_PATTERNS = [
-    /\.js$/,
-    /\.css$/,
-    /\.woff2?$/,
-    /\.ttf$/,
-    /\.ico$/,
-    /\.png$/,
-    /\.jpg$/,
-    /\.jpeg$/,
-    /\.svg$/,
-    /\.webp$/,
+    /\/assets\/.+-[0-9A-Za-z]{6,}\.js$/,
+    /\/assets\/.+-[0-9A-Za-z]{6,}\.css$/,
+    /\/assets\/.+-[0-9A-Za-z]{6,}\.mjs$/,
 ];
 
 // APIリクエストのパターン
@@ -47,7 +41,7 @@ self.addEventListener('activate', (event) => {
             .then((cacheNames) => {
                 return Promise.all(
                     cacheNames
-                        .filter((name) => name !== CACHE_NAME)
+                        .filter((name) => ![CACHE_NAME, APP_SHELL_CACHE].includes(name))
                         .map((name) => caches.delete(name))
                 );
             })
@@ -117,13 +111,13 @@ async function cacheFirst(request) {
 async function networkFirst(request) {
     try {
         const networkResponse = await fetch(request);
-        if (networkResponse.ok && request.method === 'GET') {
-            const cache = await caches.open(CACHE_NAME);
-            cache.put(request, networkResponse.clone());
+                    if (networkResponse.ok && request.method === 'GET') {
+            const cache = await caches.open(APP_SHELL_CACHE);
+            cache.put("/", networkResponse.clone());
         }
         return networkResponse;
     } catch (error) {
-        const cachedResponse = await caches.match(request);
+        const cachedResponse = await caches.match(request) || await caches.match("/");
         if (cachedResponse) {
             return cachedResponse;
         }

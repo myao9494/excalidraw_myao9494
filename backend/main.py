@@ -20,6 +20,38 @@ from datetime import datetime, timedelta
 from typing import Dict, List, Any, Optional
 import re
 from lzstring import LZString
+from starlette.responses import Response
+
+
+HASHED_ASSET_PATTERN = re.compile(r".*-[0-9A-Za-z]{6,}\.(js|css|mjs)$")
+
+
+class CacheControlledStaticFiles(StaticFiles):
+    """PWA更新反映のために配信ファイルごとのキャッシュヘッダーを制御する。"""
+
+    @staticmethod
+    def build_static_cache_headers(path: Path) -> dict[str, str]:
+        if path.name in {"index.html", "sw.js", "manifest.webmanifest", "manifest.json"}:
+            return {"Cache-Control": "no-cache, no-store, must-revalidate"}
+
+        if HASHED_ASSET_PATTERN.fullmatch(path.name):
+            return {"Cache-Control": "public, max-age=31536000, immutable"}
+
+        return {"Cache-Control": "public, max-age=3600"}
+
+    def file_response(
+        self,
+        full_path: Path,
+        stat_result: os.stat_result,
+        scope,
+        status_code: int = 200,
+    ) -> Response:
+        response = super().file_response(full_path, stat_result, scope, status_code)
+        for key, value in self.build_static_cache_headers(full_path).items():
+            response.headers[key] = value
+        if full_path.name == "sw.js":
+            response.headers["Service-Worker-Allowed"] = "/"
+        return response
 
 def find_vault_root(start_path: Path) -> Optional[Path]:
     """
@@ -902,7 +934,11 @@ async def root():
     # dist/index.html が存在する場合はフロントエンドを配信（PWA対応）
     dist_index = Path(__file__).parent.parent / "dist" / "index.html"
     if dist_index.exists():
-        return FileResponse(str(dist_index), media_type="text/html")
+        return FileResponse(
+            str(dist_index),
+            media_type="text/html",
+            headers=CacheControlledStaticFiles.build_static_cache_headers(dist_index),
+        )
     return {"message": "Excalidraw File API"}
 
 @app.get("/api/load-file")
@@ -1822,4 +1858,4 @@ async def archive_file(request: ArchiveFileRequest):
 # APIルートの後にマウントすることで、/api/* は通常通り処理される
 dist_path = Path(__file__).parent.parent / "dist"
 if dist_path.exists():
-    app.mount("/", StaticFiles(directory=str(dist_path), html=True), name="frontend")
+    app.mount("/", CacheControlledStaticFiles(directory=str(dist_path), html=True), name="frontend")
